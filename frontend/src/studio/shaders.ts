@@ -24,7 +24,7 @@ float hairMask(vec3 pos){
   if (uStyle < 0.5) return 0.0;
   vec3 q = vec3(pos.x - X0, pos.y, pos.z);
   float n = vnoise(q.xy*14.0 + q.z*5.0);
-  float e = hairEdgeY(q) + (n-0.5)*0.06;
+  float e = hairEdgeY(q) + (n-0.5)*0.02;
   return step(e, q.y);
 }
 float hairMaskSoft(vec3 pos){
@@ -51,8 +51,8 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
   vec3 col = base;
   float skinLum = dot(base, vec3(0.3,0.59,0.11));
   // real skin micro-variation from the scan's own albedo (high-pass), then pores + gentle mottling
-  col *= mix(1.0, clamp(texture2D(uDetail, vDet).r*2.0, 0.55, 1.6), 0.9);
-  col *= 0.97 + 0.06*vnoise(p*55.0) ;
+  col *= mix(1.0, clamp(texture2D(uDetail, vDet).r*2.0, 0.55, 1.6), 0.25);
+  col *= 0.99 + 0.02*vnoise(p*55.0);
   col *= 0.97 + 0.06*vnoise(p*7.0 + 3.0);
   // warm flush on cheeks / nose, cooler forehead
   float cheek = exp(-pow(length(vec2((abs(p.x)-1.25)*0.9, p.y-1.0)),2.0)*1.6);
@@ -135,12 +135,12 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
   float dens = uBeard;                                                    // 0..1 (stubble .35, short .7, full 1)
   float dots = step(hash21(floor(p*170.0)), dens*0.95);
   float strand = vnoise(vec2(p.x*60.0, p.y*18.0));
-  float bA = bm * (mix(dots*0.8, 0.55+0.45*strand, smoothstep(0.5,0.8,dens)) + 0.25*dens) * step(0.02, dens);
+  float bA = bm * clamp(pow(dens,0.6)*(0.8+0.2*vnoise(p*vec2(30.0,12.0))), 0.0, 1.0) * step(0.02, dens);
   vec3 hc = uHair*0.78;
-  col = mix(col, hc, clamp(bA,0.,1.)*front*0.95);
+  col = mix(col, hc, clamp(bA,0.,1.)*front*0.8);
   // moustache
   float mu = (1.0 - smoothstep(0.45*uMouthW,0.75*uMouthW, abs(p.x))) * smoothstep(MOUTH_Y+0.04, MOUTH_Y+0.1, p.y) * (1.0 - smoothstep(MOUTH_Y+0.3, MOUTH_Y+0.4, p.y));
-  float mdots = mix(step(hash21(floor(p*120.0+7.0)), 0.9), 0.6+0.4*vnoise(p*vec2(70.0,25.0)), step(0.5,uMust));
+  float mdots = 0.75+0.25*vnoise(p*vec2(40.0,18.0));
   col = mix(col, hc*0.9, mu*uMust*mdots*front*0.92);
   // sideburns
   float sb = (1.0 - smoothstep(0.0,0.25, abs(abs(p.x)-1.9) - 0.2)) * step(1.0,p.y) * (1.0 - smoothstep(1.6 + uSide*0.8, 2.0 + uSide*0.8, p.y)) * step(0.01, uSide);

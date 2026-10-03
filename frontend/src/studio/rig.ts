@@ -138,8 +138,8 @@ export class FaceRig {
     this.U.uDetail = { value: MAPS?.detail ?? new THREE.DataTexture(new Uint8Array([128, 128, 128, 255]), 1, 1) }
     if (!MAPS) (this.U.uDetail.value as THREE.DataTexture).needsUpdate = true
 
-    const skin = new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.68, metalness: 0, sheen: 0.15, sheenRoughness: 0.6, sheenColor: new THREE.Color("#ffd9c8"), clearcoat: 0, clearcoatRoughness: 0.5 })
-    if (MAPS) { skin.normalMap = MAPS.normal; skin.normalScale.set(0.9, 0.9) }
+    const skin = new THREE.MeshPhysicalMaterial({ color: '#ffffff', roughness: 0.8, metalness: 0, sheen: 0.15, sheenRoughness: 0.6, sheenColor: new THREE.Color("#ffd9c8"), clearcoat: 0, clearcoatRoughness: 0.5 })
+    if (MAPS) { skin.normalMap = MAPS.normal; skin.normalScale.set(0.3, 0.3) }
     skin.onBeforeCompile = sh => {
       Object.assign(sh.uniforms, this.U)
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + VARY).replace('#include <begin_vertex>', '#include <begin_vertex>\n vObj = position; vObjN = normal; vDet = uv;')

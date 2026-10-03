@@ -77,7 +77,7 @@ export default function Reconstruct({ ctx }: { ctx: Ctx }) {
             <p className="text-[12.5px] text-mute mt-0.5">Version {String(v.n).padStart(2, '0')} · {v.candidates.length} candidates from the structured profile</p>
           </div>
           <div className="flex gap-2 items-center">
-            <Badge tone={v.candidates[0]?.meta.photoreal ? 'ok' : 'steel'}>{v.candidates[0]?.meta.photoreal ? 'PHOTO-REAL AI · FROM 3D MODEL' : '3D FACE STUDIO · RENDER'}</Badge>
+            <Badge tone={v.candidates[0]?.meta.photoreal ? 'ok' : 'steel'}>{v.candidates[0]?.meta.photoreal ? 'PHOTO-REAL AI · FROM 3D MODEL' : 'GENERIC FACE MODEL · APPROXIMATION'}</Badge>
             <button className="btn btn-ghost" onClick={() => setRefine(r => !r)}>Refine face</button>
           </div>
         </div>

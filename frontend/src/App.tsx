@@ -35,7 +35,7 @@ function Header() {
         {s?.offline && <Badge tone="warn">BACKEND OFFLINE</Badge>}
         {s && !s.offline && <>
           <Badge tone="steel">3D FACE STUDIO</Badge>
-          <Badge tone={s.photoreal ? 'ok' : 'warn'}>PHOTO-REAL AI · {s.photoreal ? 'ON' : 'OFF (no key)'}</Badge>
+          {s.photoreal && <Badge tone="ok">PHOTO-REAL AI · ON</Badge>}
           <Badge tone={s.matching === 'real' ? 'ok' : 'warn'}>MATCHING · {s.matching === 'real' ? 'REAL MODEL' : 'DEMO MODE'}</Badge>
         </>}
       </div>

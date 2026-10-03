@@ -52,6 +52,8 @@ export default function Interview({ ctx }: { ctx: Ctx }) {
   const [err, setErr] = useState('')
   const [view, setView] = useState('Front')
   const [photo, setPhoto] = useState<string | null>(null)
+  const [photoOn, setPhotoOn] = useState(false)
+  useEffect(() => { api.status().then(s => setPhotoOn(!!s.photoreal)).catch(() => {}) }, [])
   const [pBusy, setPBusy] = useState(false)
   const [pErr, setPErr] = useState('')
   const previewPhoto = async () => {
@@ -166,12 +168,12 @@ export default function Interview({ ctx }: { ctx: Ctx }) {
               </div>
             )}
           </div>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
+          {photoOn && <div className="mt-3 flex flex-wrap items-center gap-3">
             <button className="btn btn-ghost !h-9" disabled={pBusy} onClick={previewPhoto}>{pBusy ? 'Making photo…' : 'Preview as photo'}</button>
             <span className="text-[11.5px] text-mute">Redraws the current face as a photograph (takes a few seconds).</span>
             {pErr && <span className="text-[12px] text-warn">{pErr}</span>}
-          </div>
-          <p className="text-[11.5px] text-mute mt-2">This 3D model is a guide and updates as you answer. Press "Preview as photo" to see it as a photograph.</p>
+          </div>}
+          <p className="text-[11.5px] text-mute mt-2">A simple generic face that updates as you answer. Drag to turn the head.</p>
           <div className="mt-4 flex flex-wrap gap-1.5">
             {Object.entries(profile).filter(([k, v]) => v && !(Array.isArray(v) && !v.length) && k !== 'age').slice(0, 14).map(([k, v]) => (
               <span key={k} className="text-[11px] px-2 py-0.5 rounded bg-[#f1f1ee] text-graphite"><span className="text-mute">{k.replace('_', ' ')}:</span> {Array.isArray(v) ? v.length + ' marks' : String(v).replace('_', ' ')}</span>
