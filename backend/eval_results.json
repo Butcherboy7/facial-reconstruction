@@ -1,0 +1,47 @@
+{
+ "identity (same image)": {
+  "n": 18,
+  "face_found": 18,
+  "top1": 1.0,
+  "top3": 1.0,
+  "sim_same_mean": 1.0,
+  "sim_other_mean": 0.227,
+  "embed_ms_mean": 13.5
+ },
+ "pencil sketch": {
+  "n": 18,
+  "face_found": 18,
+  "top1": 1.0,
+  "top3": 1.0,
+  "sim_same_mean": 0.484,
+  "sim_other_mean": 0.119,
+  "embed_ms_mean": 25.7
+ },
+ "age +20 sim": {
+  "n": 18,
+  "face_found": 18,
+  "top1": 1.0,
+  "top3": 1.0,
+  "sim_same_mean": 0.921,
+  "sim_other_mean": 0.208,
+  "embed_ms_mean": 55.6
+ },
+ "glasses": {
+  "n": 18,
+  "face_found": 18,
+  "top1": 1.0,
+  "top3": 1.0,
+  "sim_same_mean": 0.776,
+  "sim_other_mean": 0.172,
+  "embed_ms_mean": 42.1
+ },
+ "stubble": {
+  "n": 18,
+  "face_found": 18,
+  "top1": 1.0,
+  "top3": 1.0,
+  "sim_same_mean": 0.918,
+  "sim_other_mean": 0.221,
+  "embed_ms_mean": 45.8
+ }
+}

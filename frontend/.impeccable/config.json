@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "codex-grid-background",
+        "value": "*",
+        "files": [
+          "src/index.css"
+        ],
+        "createdAt": "2026-10-03T14:50:15.029Z",
+        "reason": "Scan-view overlay on the 3D face during reference search; required by project spec section 25 (scanning line + subtle grid). Domain-appropriate measurement surface, not a decorative page background."
+      }
+    ]
+  }
+}

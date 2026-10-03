@@ -1,0 +1,54 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --color-paper: #f5f5f2;
+  --color-surface: #ffffff;
+  --color-ink: #1d2126;
+  --color-graphite: #3a4048;
+  --color-mute: #5d6671;
+  --color-line: #dcdedf;
+  --color-line2: #eceeee;
+  --color-steel: #3d5f7f;
+  --color-steel-d: #2c4a66;
+  --color-steel-l: #e6edf3;
+  --color-warn: #8a5a12;
+  --color-warn-l: #f7efdc;
+  --color-ok: #2f6b4f;
+}
+
+html, body, #root { height: 100%; }
+body { background: var(--color-paper); color: var(--color-ink); font-family: var(--font-sans); -webkit-font-smoothing: antialiased; }
+.label { font-size: 11px; letter-spacing: .09em; text-transform: uppercase; font-weight: 600; color: var(--color-mute); }
+.card { background: var(--color-surface); border: 1px solid var(--color-line); border-radius: 10px; }
+.btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; height:40px; padding:0 18px; border-radius:8px; font-size:13px; font-weight:600; letter-spacing:.02em; transition: all .15s; cursor:pointer; border:1px solid transparent; }
+.btn-primary { background: var(--color-steel); color:#fff; } .btn-primary:hover { background: var(--color-steel-d); }
+.btn-ghost { background:#fff; border-color: var(--color-line); color: var(--color-graphite); } .btn-ghost:hover { border-color:#b9bec3; background:#fafafa; }
+.btn:disabled { opacity:.45; cursor:not-allowed; }
+.input { width:100%; height:40px; border:1px solid var(--color-line); border-radius:8px; padding:0 12px; background:#fff; font-size:14px; outline:none; }
+.input:focus { border-color: var(--color-steel); box-shadow: 0 0 0 3px var(--color-steel-l); }
+textarea.input { height:auto; padding:10px 12px; }
+.chip { height:36px; padding:0 14px; border-radius:999px; border:1px solid var(--color-line); background:#fff; font-size:13px; color: var(--color-graphite); cursor:pointer; transition: all .12s; }
+.chip:hover { border-color:#aab3bb; } .chip[data-on="true"] { background: var(--color-steel); color:#fff; border-color: var(--color-steel); }
+.opt { border:1.5px solid var(--color-line); border-radius:10px; background:#fff; cursor:pointer; overflow:hidden; transition: all .12s; text-align:left; }
+.opt:hover { border-color:#aab3bb; transform: translateY(-1px); } .opt[data-on="true"] { border-color: var(--color-steel); box-shadow: 0 0 0 3px var(--color-steel-l); }
+.paper-bg { background-image: radial-gradient(#d9dcdc 1px, transparent 1px); background-size: 18px 18px; }
+@keyframes scan { 0% { top: 4%; } 50% { top: 94%; } 100% { top: 4%; } }
+.scanline { position:absolute; left:0; right:0; height:2px; background: linear-gradient(90deg, transparent, #6fb0e8, transparent); box-shadow: 0 0 18px 4px rgba(111,176,232,.55); animation: scan 2.6s ease-in-out infinite; }
+.gridov { background-image: linear-gradient(rgba(111,176,232,.14) 1px, transparent 1px), linear-gradient(90deg, rgba(111,176,232,.14) 1px, transparent 1px); background-size: 28px 28px; }
+@keyframes fadein { from { opacity:0; transform: translateY(4px);} to { opacity:1; transform:none; } }
+.fade { animation: fadein .25s ease both; }
+@media print {
+  .noprint { display:none !important; } body { background:#fff; } .card { break-inside: avoid; }
+}
+
+::selection { background: #c9d9e8; color: var(--color-ink); }
+:focus-visible { outline: 2px solid var(--color-steel); outline-offset: 2px; border-radius: 6px; }
+* { scrollbar-width: thin; scrollbar-color: #c4c8cc transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: #c4c8cc; border-radius: 8px; border: 2px solid var(--color-paper); }
+.tabular, td, th { font-variant-numeric: tabular-nums; }
+.stagger > * { animation: fadein .38s cubic-bezier(.16,1,.3,1) both; }
+.stagger > *:nth-child(2) { animation-delay: .06s } .stagger > *:nth-child(3) { animation-delay: .12s } .stagger > *:nth-child(4) { animation-delay: .18s }
+.stagger > *:nth-child(5) { animation-delay: .22s } .stagger > *:nth-child(n+6) { animation-delay: .26s }
+@media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; } .scanline { display:none; } }
