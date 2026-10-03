@@ -1,5 +1,6 @@
 import * as THREE from 'three'
-import { FaceRig, loadHeadGeometry, lookFromProfile, X0 } from './rig'
+import { lookFromProfile, X0 } from './rig'
+import { BasicRig } from './basic'
 import type { Profile } from './rig'
 
 export const W = 512, H = 640
@@ -11,7 +12,7 @@ export function addStudioLights(scene: THREE.Scene) {
   const fill = new THREE.DirectionalLight(0xcfe0ff, 0.8); fill.position.set(-6, 2, 5); scene.add(fill)
 }
 
-let ctx: { r: THREE.WebGLRenderer; scene: THREE.Scene; cam: THREE.PerspectiveCamera; rig: FaceRig } | null = null
+let ctx: { r: THREE.WebGLRenderer; scene: THREE.Scene; cam: THREE.PerspectiveCamera; rig: BasicRig } | null = null
 
 async function init() {
   if (ctx) return ctx
@@ -21,7 +22,7 @@ async function init() {
   addStudioLights(scene)
   const cam = new THREE.PerspectiveCamera(26, W / H, 0.1, 100)
   cam.position.set(X0, 1.55, 15.5); cam.lookAt(TARGET)
-  const rig = new FaceRig(await loadHeadGeometry())
+  const rig = new BasicRig()
   scene.add(rig.root)
   ctx = { r, scene, cam, rig }
   return ctx

@@ -9,7 +9,7 @@ import { generateVersion } from '../studio/actions'
 import type { Ctx } from '../pages/Case'
 import { Check, ArrowLeft, ArrowRight, Scan } from '../icons'
 
-const GEN_STAGES = ['Reading the witness description…', 'Shaping the 3D face model…', 'Rendering 4 candidate faces…', 'Checking each face is valid…']
+const GEN_STAGES = ['Reading the witness description…', 'Shaping the 3D face…', 'Saving the face to the case…']
 
 const FRAME: Record<string, Frame> = { face_shape: 'head', hair_style: 'head', beard: 'lower', eyebrows: 'eyes', eyes: 'eyes', nose: 'nose', mouth: 'mouth' }
 
@@ -85,8 +85,9 @@ export default function Interview({ ctx }: { ctx: Ctx }) {
     setBusy(true); setErr(''); setStage(0)
     const tick = setInterval(() => setStage(s => Math.min(s + 1, GEN_STAGES.length - 1)), 900)
     try {
-      await Promise.all([generateVersion(id, profile), new Promise(res => setTimeout(res, 2400))])
-      await ctx.reload(); ctx.go('reconstruct')
+      const [v] = await Promise.all([generateVersion(id, profile), new Promise(res => setTimeout(res, 1500))])
+      await api.select(id, v.id, 0)
+      await ctx.reload(); ctx.go('analyze')
     } catch (e: any) { setErr(e.message) } finally { clearInterval(tick); setBusy(false) }
   }
 
@@ -181,14 +182,14 @@ export default function Interview({ ctx }: { ctx: Ctx }) {
           </div>
         </div>
         <button className="btn btn-primary w-full mt-4 h-12 text-[14px]" disabled={reqLeft.length > 0} onClick={generate}>
-          <Scan size={17} /> BUILD 4 CANDIDATE FACES
+          <Scan size={17} /> SAVE FACE &amp; CONTINUE
         </button>
         {reqLeft.length > 0
           ? <div className="mt-3 rounded-lg bg-warn-l text-warn text-[12.5px] p-3 leading-relaxed">
-              <b>{reqLeft.length} required answer{reqLeft.length > 1 ? 's' : ''} missing before faces can be built.</b> Go to:{' '}
+              <b>{reqLeft.length} required answer{reqLeft.length > 1 ? 's' : ''} missing before the face can be saved.</b> Go to:{' '}
               {missingSteps.map(i => <button key={i} className="underline font-semibold mr-3" onClick={() => setStepIdx(i)}>{schema.steps[i].title}</button>)}
             </div>
-          : <p className="text-[12px] text-mute mt-2 text-center">Builds 4 candidate faces from this description — none is presented as definitive.</p>}
+          : <p className="text-[12px] text-mute mt-2 text-center">Saves this face to the case. You can come back and change the description any time.</p>}
         {err && <p className="text-[12px] text-warn mt-2">{err}</p>}
       </section>
 
@@ -201,7 +202,7 @@ export default function Interview({ ctx }: { ctx: Ctx }) {
             {stepIdx < schema.steps.length - 1
               ? <button className="btn btn-primary !h-9 !px-4" onClick={() => setStepIdx(stepIdx + 1)}>Next <ArrowRight /></button>
               : reqLeft.length === 0
-                ? <button className="btn btn-primary !h-9 !px-4" onClick={generate}>Build faces <ArrowRight /></button>
+                ? <button className="btn btn-primary !h-9 !px-4" onClick={generate}>Save face <ArrowRight /></button>
                 : <button className="btn btn-primary !h-9 !px-4" onClick={() => setStepIdx(missingSteps[0])}>Finish missing <ArrowRight /></button>}
           </div>
         </div>

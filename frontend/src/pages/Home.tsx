@@ -8,8 +8,7 @@ import FaceViewer from '../studio/FaceViewer'
 const SAMPLE = { sex: 'male', age: 34, skin: 'medium', face_shape: 'square', hair_style: 'short', hair_color: 'dark_brown', eyebrows: 'thick_straight', eyes: 'almond', eye_color: 'brown', nose: 'straight', mouth: 'medium', jaw: 'strong', beard: 'stubble' }
 
 const FLOW = [
-  ['Describe', 'Answer simple questions about the person: face shape, hair, eyes, skin tone and more. The 3D face on screen changes with every answer.'],
-  ['Pick a face', 'The system builds four candidate faces from your answers. Choose the one that looks closest, or refine it and build again.'],
+  ['Describe', 'Answer simple questions about the person: face shape, hair, eyes, skin tone and more. The 3D face on screen changes with every answer, then you save it.'],
   ['Explore', 'Turn the head in 3D, make a pencil sketch, see how the person may look at other ages, or with a beard or glasses.'],
   ['Compare', 'Run the chosen face against a reference set. A model scores how alike each stored face is.'],
   ['Report', 'Get a printable case report with every step, version and the limits of the method.'],
@@ -39,8 +38,8 @@ export default function Home() {
 
       <section className="mt-14">
         <h2 className="text-[22px] font-semibold tracking-tight mb-1">How it works</h2>
-        <p className="text-[13.5px] text-mute mb-5">Five steps. Each case page shows the same steps along the top, so you always know where you are.</p>
-        <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3 stagger">
+        <p className="text-[13.5px] text-mute mb-5">Four steps. Each case page shows the same steps along the top, so you always know where you are.</p>
+        <ol className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 stagger">
           {FLOW.map(([t, d], i) => (
             <li key={t} className="card p-4">
               <span className="w-7 h-7 rounded-full bg-steel text-white text-[13px] font-semibold grid place-items-center mb-3">{i + 1}</span>

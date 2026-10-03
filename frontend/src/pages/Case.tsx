@@ -4,7 +4,6 @@ import { api } from '../api'
 import type { Profile } from '../api'
 import type { Schema } from '../sketch'
 import Interview from '../components/Interview'
-import Reconstruct from '../components/Reconstruct'
 import Analyze from '../components/Analyze'
 import Search from '../components/Search'
 import Report from '../components/Report'
@@ -13,8 +12,7 @@ import { Check } from '../icons'
 export type Ctx = { id: string; schema: Schema; data: any; reload: () => Promise<void>; go: (t: string) => void; profile: Profile; setProfile: (p: Profile) => void }
 
 const TABS = [
-  { id: 'interview', label: 'Describe', hint: 'Answer questions about the person', help: 'Answer the questions one group at a time. The 3D face changes as you go. When everything required is filled in, build the candidate faces.' },
-  { id: 'reconstruct', label: 'Pick a face', hint: 'Choose the closest of 4 candidates', help: 'Four candidate faces were built from your answers. Press "Use this reconstruction" on the one that looks closest, or refine the description and build again.' },
+  { id: 'interview', label: 'Describe', hint: 'Answer questions about the person', help: 'Answer the questions one group at a time. The 3D face changes as you go. When everything required is filled in, save the face.' },
   { id: 'analyze', label: 'Explore', hint: 'Sketch, 3D view, age, variations', help: 'Work from the face you picked: turn it in 3D, make a pencil sketch, see other ages, or try a beard, glasses or different hair.' },
   { id: 'search', label: 'Compare', hint: 'Match against reference faces', help: 'Run the picked face against the stored reference set. Scores are model output only; they never establish identity.' },
   { id: 'report', label: 'Report', hint: 'Printable case summary', help: 'A summary of the whole case. Use Print to save it as a PDF.' },
@@ -42,7 +40,6 @@ export default function CasePage() {
   const ctx: Ctx = { id, schema, data, reload, go, profile, setProfile }
   const done: Record<string, boolean> = {
     interview: schema.required.every(k => profile[k]),
-    reconstruct: !!c.final_image,
     analyze: data.assets.length > 0,
     search: !!data.search,
     report: false,
@@ -69,9 +66,8 @@ export default function CasePage() {
         </div>
       </div>
       <div className="max-w-[1400px] mx-auto px-4 sm:px-6 py-6">
-        <p className="noprint text-[13.5px] text-graphite mb-5 max-w-3xl"><b className="text-ink">Step {TABS.findIndex(t => t.id === tab) + 1} of 5 · {TABS.find(t => t.id === tab)?.label}.</b> {TABS.find(t => t.id === tab)?.help}</p>
+        <p className="noprint text-[13.5px] text-graphite mb-5 max-w-3xl"><b className="text-ink">Step {TABS.findIndex(t => t.id === tab) + 1} of {TABS.length} · {TABS.find(t => t.id === tab)?.label}.</b> {TABS.find(t => t.id === tab)?.help}</p>
         {tab === 'interview' && <Interview ctx={ctx} />}
-        {tab === 'reconstruct' && <Reconstruct ctx={ctx} />}
         {tab === 'analyze' && <Analyze ctx={ctx} />}
         {tab === 'search' && <Search ctx={ctx} />}
         {tab === 'report' && <Report ctx={ctx} />}

@@ -5,8 +5,7 @@ import type { Profile } from './rig'
 
 /** Candidate A is the exact witness profile; B–D explore plausible uncertainty around it (seeded morph jitter). */
 export async function generateVersion(caseId: string, profile: Profile, parent?: number, changes?: Profile) {
-  const base = 100 + Math.floor(Math.random() * 9000)
-  const seeds = [0, base, base + 1, base + 2]
+  const seeds = [0]
   const jobs: Job[] = seeds.map((s, i) => ({ profile, seed: s, jitter: i === 0 ? 0 : 1 }))
   const images = await renderJobs(jobs)
   return api.uploadVersion({ case_id: caseId, profile, images, seeds, parent, changes })

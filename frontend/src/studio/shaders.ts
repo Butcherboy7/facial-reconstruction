@@ -9,7 +9,7 @@ float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
 const float X0 = -0.07;
 const float EYE_Y = 1.79;
 const float BROW_Y = 2.34;
-const float MOUTH_Y = 0.55;
+const float MOUTH_Y = 0.37;
 uniform float uHairline; uniform float uRecede; uniform float uBackEdge; uniform float uSideLong; uniform float uStyle;
 float hairEdgeY(vec3 q){
   float ax = abs(q.x);

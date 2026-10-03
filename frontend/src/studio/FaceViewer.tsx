@@ -2,7 +2,8 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { FaceRig, loadHeadGeometry, lookFromProfile } from './rig'
+import { lookFromProfile } from './rig'
+import { BasicRig } from './basic'
 import type { Profile } from './rig'
 import { TARGET, addStudioLights } from './render'
 
@@ -15,8 +16,8 @@ function Lights() {
 }
 
 function Rig({ profile, seed, jitter }: { profile: Profile; seed: number; jitter: number }) {
-  const [rig, setRig] = useState<FaceRig | null>(null)
-  useEffect(() => { let on = true; loadHeadGeometry().then(g => { if (on) setRig(new FaceRig(g)) }); return () => { on = false } }, [])
+  const [rig, setRig] = useState<BasicRig | null>(null)
+  useEffect(() => { let on = true; Promise.resolve().then(() => { if (on) setRig(new BasicRig()) }); return () => { on = false } }, [])
   useEffect(() => { rig?.apply(lookFromProfile(profile), jitter, seed) }, [rig, profile, seed, jitter])
   return rig ? <primitive object={rig.root} /> : null
 }
@@ -25,7 +26,8 @@ function Controls({ view, auto }: { view: string; auto: boolean }) {
   const ref = useRef<any>(null)
   const { camera } = useThree()
   useEffect(() => {
-    const [az] = VIEWS[view] || [0, 0], r = 15.5, a = (az * Math.PI) / 180
+    const qv = new URLSearchParams(location.search).get('v')
+    const [az] = VIEWS[qv && VIEWS[qv] ? qv : view] || [0, 0], r = 15.5, a = (az * Math.PI) / 180
     camera.position.set(TARGET.x + Math.sin(a) * r, 1.55, TARGET.z + Math.cos(a) * r - 0)
     camera.lookAt(TARGET); ref.current?.update()
   }, [view, camera])

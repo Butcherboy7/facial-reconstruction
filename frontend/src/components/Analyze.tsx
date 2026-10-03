@@ -22,8 +22,8 @@ export default function Analyze({ ctx }: { ctx: Ctx }) {
   const witnessAge = data.case.profile.age ?? 35
 
   if (!final) return (
-    <div className="card p-14 text-center paper-bg"><div className="text-lg font-medium mb-1">Select a reconstruction first</div>
-      <button className="btn btn-primary mt-3" onClick={() => ctx.go('reconstruct')}>Go to candidates</button></div>
+    <div className="card p-14 text-center paper-bg"><div className="text-lg font-medium mb-1">Describe the person first</div>
+      <button className="btn btn-primary mt-3" onClick={() => ctx.go('interview')}>Go to Describe</button></div>
   )
   const run = async (name: string, fn: () => Promise<any>) => { setBusy(name); try { await fn(); await ctx.reload() } catch (e: any) { alert(e.message) } finally { setBusy('') } }
   const useFor = (path: string) => run('final', () => api.setFinal(id, path))

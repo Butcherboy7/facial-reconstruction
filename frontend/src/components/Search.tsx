@@ -24,8 +24,8 @@ export default function Search({ ctx }: { ctx: Ctx }) {
   useEffect(() => { if (s && !sel) setSel(s.results[0]) }, [s])
 
   if (!final) return (
-    <div className="card p-14 text-center paper-bg"><div className="text-lg font-medium mb-1">Select a reconstruction first</div>
-      <button className="btn btn-primary mt-3" onClick={() => ctx.go('reconstruct')}>Go to candidates</button></div>
+    <div className="card p-14 text-center paper-bg"><div className="text-lg font-medium mb-1">Describe the person first</div>
+      <button className="btn btn-primary mt-3" onClick={() => ctx.go('interview')}>Go to Describe</button></div>
   )
 
   const run = async () => {
