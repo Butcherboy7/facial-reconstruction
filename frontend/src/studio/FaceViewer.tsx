@@ -2,8 +2,7 @@ import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { lookFromProfile } from './rig'
-import { BasicRig } from './basic'
+import { FaceRig, loadHeadGeometry, lookFromProfile } from './rig'
 import type { Profile } from './rig'
 import { TARGET, addStudioLights } from './render'
 
@@ -16,8 +15,8 @@ function Lights() {
 }
 
 function Rig({ profile, seed, jitter }: { profile: Profile; seed: number; jitter: number }) {
-  const [rig, setRig] = useState<BasicRig | null>(null)
-  useEffect(() => { let on = true; Promise.resolve().then(() => { if (on) setRig(new BasicRig()) }); return () => { on = false } }, [])
+  const [rig, setRig] = useState<FaceRig | null>(null)
+  useEffect(() => { let on = true; loadHeadGeometry().then(g => { if (on) setRig(new FaceRig(g)) }); return () => { on = false } }, [])
   useEffect(() => { rig?.apply(lookFromProfile(profile), jitter, seed) }, [rig, profile, seed, jitter])
   return rig ? <primitive object={rig.root} /> : null
 }
