@@ -62,7 +62,8 @@ export default function Interview({ ctx }: { ctx: Ctx }) {
     catch (e: any) { setPErr(e.message) } finally { setPBusy(false) }
   }
   const saveT = useRef<any>(null)
-  const step = schema.steps[stepIdx]
+  const step = schema.steps[Math.min(stepIdx, schema.steps.length - 1)]
+  useEffect(() => { if (stepIdx > schema.steps.length - 1) setStepIdx(schema.steps.length - 1) }, [stepIdx, schema.steps.length])
 
   const stepDone = (i: number) => schema.steps[i].questions.every(q => !schema.required.includes(q.key) || profile[q.key])
   const answered = (i: number) => schema.steps[i].questions.some(q => profile[q.key] && (q.key !== 'age' || true))

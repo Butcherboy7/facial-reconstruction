@@ -4,8 +4,15 @@ NEG = ("cartoon, anime, illustration, plastic skin, smiling, dramatic lighting, 
        "deformed ears, uncanny eyes, oversized eyes, sunglasses, hat, busy background")
 
 
+def _tidy(p: dict) -> dict:
+    """facial hair does not apply to a woman: keep the written description consistent with the face"""
+    if p.get('sex') == 'female': p = {**p, 'beard': 'none', 'mustache': 'none', 'sideburns': 'none'}
+    return p
+
+
 def short_prompt(p: dict) -> str:
     """compact prompt for image models with short context (Stable-Diffusion style)"""
+    p = _tidy(p)
     age = int(p.get("age") or 35)
     sex = {"male": "man", "female": "woman"}.get(p.get("sex"), "person")
     parts = []
@@ -13,7 +20,7 @@ def short_prompt(p: dict) -> str:
         if p.get(k): parts.append(phrase(k, p[k]))
     hs, hc = p.get("hair_style"), p.get("hair_color")
     parts.append("shaved bald head" if hs == "bald" else (f"{phrase('hair_style', hs)} in {phrase('hair_color', hc)}" if hs and hc else phrase("hair_style", hs) if hs else ""))
-    parts.append("clean-shaven" if p.get("beard") in (None, "none") else phrase("beard", p["beard"]))
+    if p.get("sex") != "female": parts.append("clean-shaven" if p.get("beard") in (None, "none") else phrase("beard", p["beard"]))
     if p.get("mustache") not in (None, "none"): parts.append(phrase("mustache", p["mustache"]))
     if p.get("glasses") == "glasses": parts.append("wearing glasses")
     for m in p.get("marks") or []: parts.append(phrase("marks", m))
@@ -32,7 +39,8 @@ def build_prompt(p: dict) -> str:
     elif hs: parts.append(f"{phrase('hair_style', hs)}" + (f" in {phrase('hair_color', hc)}" if hc else ""))
     for k in ["eyebrows", "eyes", "eye_color", "eye_spacing", "nose", "nose_size", "mouth", "jaw", "chin", "ears"]:
         if p.get(k): parts.append(phrase(k, p[k]))
-    if p.get("beard") and p["beard"] != "none": parts.append(phrase("beard", p["beard"]))
+    if p.get("sex") == "female": pass
+    elif p.get("beard") and p["beard"] != "none": parts.append(phrase("beard", p["beard"]))
     elif p.get("beard") == "none": parts.append("clean-shaven")
     if p.get("mustache") and p["mustache"] != "none": parts.append(phrase("mustache", p["mustache"]))
     if p.get("sideburns") and p["sideburns"] != "none": parts.append(phrase("sideburns", p["sideburns"]))

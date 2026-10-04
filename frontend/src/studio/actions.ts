@@ -16,8 +16,9 @@ export type Final = { profile: Profile; seed: number; jitter: number } | null
 export function finalOf(data: any): Final {
   const f = data.case.final_image as string | null
   if (!f) return null
-  for (const v of data.versions) for (const c of v.candidates) if (f.endsWith(c.path)) return { profile: v.profile, seed: c.meta.seed ?? 0, jitter: c.meta.jitter ?? 0 }
-  return null
+  for (const v of data.versions) for (const c of v.candidates) if (f.endsWith(c.path)) return { profile: normalize(v.profile), seed: c.meta.seed ?? 0, jitter: c.meta.jitter ?? 0 }
+  const v = data.versions.at(-1)   // final image is a variation / age render: work from the latest saved face
+  return v ? { profile: normalize(v.profile), seed: 0, jitter: 0 } : null
 }
 
 export async function renderAssets(caseId: string, fin: NonNullable<Final>, items: { kind: string; label: string; profile: Profile; meta?: any }[]) {
@@ -27,13 +28,5 @@ export async function renderAssets(caseId: string, fin: NonNullable<Final>, item
   return out
 }
 
-export const VARIATIONS: Record<string, { label: string; change: (p: Profile) => Profile }> = {
-  stubble: { label: 'Light stubble', change: p => ({ ...p, beard: 'stubble' }) },
-  beard: { label: 'Full beard', change: p => ({ ...p, beard: 'full' }) },
-  mustache: { label: 'Thick mustache', change: p => ({ ...p, mustache: 'thick' }) },
-  glasses: { label: 'Glasses', change: p => ({ ...p, glasses: 'glasses' }) },
-  shaved: { label: 'Shaved head', change: p => ({ ...p, hair_style: 'bald' }) },
-  darker_hair: { label: 'Darker hair', change: p => ({ ...p, hair_color: 'black' }) },
-  lighter_hair: { label: 'Lighter hair', change: p => ({ ...p, hair_color: 'blond' }) },
-  long_hair: { label: 'Longer hair', change: p => ({ ...p, hair_style: 'long' }) },
-}
+export { VARIATIONS } from './logic'
+import { normalize } from './logic'

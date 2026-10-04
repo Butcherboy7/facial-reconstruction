@@ -51,20 +51,20 @@ export function lookFromProfile(p: Profile): Look {
   const dark = skinKey === 'dark' || skinKey === 'brown'
   const eyeKey = p.eye_color || (dark ? 'brown' : 'hazel')
   const hairC = HAIR[p.hair_color] || HAIR.dark_brown
-  const lipBase = new THREE.Color(SKIN[skinKey] || SKIN.medium).lerp(new THREE.Color(dark ? '#4a1f20' : '#b04a46'), 0.6).getStyle()
+  const lipBase = new THREE.Color(SKIN[skinKey] || SKIN.medium).lerp(new THREE.Color(dark ? (female ? '#5a2026' : '#4a1f20') : (female ? '#b4485a' : '#b04a46')), female ? 0.68 : 0.6).getStyle()
   const beardV = ({ none: 0, stubble: .38, short: .72, full: 1, goatee: .9 } as any)[p.beard ?? 'none']
-  const hs = p.hair_style || 'bald'
+  const hs = p.hair_style || (female ? 'long' : 'short')   // sensible look before the hair question is answered
   return {
-    width: .04 + fs[0] - .05 * female, jaw: fs[2] + jawK - .08 * female, length: -.03 + fs[1] + (p.chin === 'projecting' ? .02 : 0) - (p.chin === 'receding' ? .02 : 0),
-    chinZ: ({ receding: -.2, medium: 0, projecting: .26, cleft: .05, pointed: .06 } as any)[p.chin] ?? 0, chinPoint: p.chin === 'pointed' ? .35 : p.jaw === 'narrow' ? .12 : 0, cleft: p.chin === 'cleft' ? 1 : 0,
+    width: .04 + fs[0] - .06 * female, jaw: fs[2] + jawK - .15 * female, length: -.03 + fs[1] + (p.chin === 'projecting' ? .02 : 0) - (p.chin === 'receding' ? .02 : 0),
+    chinZ: ({ receding: -.2, medium: 0, projecting: .26, cleft: .05, pointed: .06 } as any)[p.chin] ?? 0, chinPoint: (p.chin === 'pointed' ? .35 : p.jaw === 'narrow' ? .12 : 0) + .1 * female, cleft: p.chin === 'cleft' ? 1 : 0,
     foreheadH: ({ low: -.18, medium: 0, high: .22 } as any)[p.forehead] ?? 0,
-    noseW: nose.w + ns * .9, noseL: nose.l * 2 + ns, noseBridge: p.nose === 'hooked' ? .08 : 0, noseHook: nose.hook, noseUp: nose.up, brow: .09 - .05 * female + (p.eyes === 'deep_set' ? .08 : 0),
-    cheek: p.cheeks === 'full' ? .22 : p.cheeks === 'hollow' ? -.2 : 0, bone: p.cheeks === 'high_cheekbones' || p.face_shape === 'diamond' ? .2 : 0, lip: (mo[1] - 1) * .05,
-    earS: ({ small: .82, medium: 1, large: 1.22, protruding: 1.15 } as any)[p.ears] ?? 1, earOut: p.ears === 'protruding' ? .35 : 0, female, age,
+    noseW: nose.w + ns * .9 - .12 * female, noseL: nose.l * 2 + ns - .06 * female, noseBridge: p.nose === 'hooked' ? .08 : 0, noseHook: nose.hook, noseUp: nose.up, brow: .09 - .05 * female + (p.eyes === 'deep_set' ? .08 : 0),
+    cheek: p.cheeks === 'full' ? .22 : p.cheeks === 'hollow' ? -.2 : 0, bone: (p.cheeks === 'high_cheekbones' || p.face_shape === 'diamond' ? .2 : 0) + .08 * female, lip: (mo[1] - 1) * .05,
+    earS: (({ small: .82, medium: 1, large: 1.22, protruding: 1.15 } as any)[p.ears] ?? 1) * (hs === 'long' ? .8 : 1), earOut: (p.ears === 'protruding' ? .35 : 0) - (hs === 'long' ? .3 : 0), female, age,
     skin: SKIN[skinKey] || SKIN.medium, hair: hairC, iris: EYE[eyeKey] || EYE.brown, lip_c: lipBase,
-    eyeSpacing: ({ close: .88, average: 1, wide: 1.14 } as any)[p.eye_spacing] ?? 1, eyeW: ey[0], eyeH: ey[1] + .1 * female, eyeTilt: ey[2], eyeLid: ey[3],
-    browT: br[0] - .4 * female, browArch: br[1], browUp: p.forehead === 'high' ? .05 : 0,
-    mouthW: mo[0], lipUp: mo[1] + female * .2, lipLo: mo[2] + female * .25,
+    eyeSpacing: ({ close: .88, average: 1, wide: 1.14 } as any)[p.eye_spacing] ?? 1, eyeW: ey[0] + .05 * female, eyeH: ey[1] + .12 * female, eyeTilt: ey[2], eyeLid: ey[3],
+    browT: br[0] - .5 * female, browArch: br[1] + 0.5 * female, browUp: p.forehead === 'high' ? .05 : 0,
+    mouthW: mo[0] * (1 - .04 * female), lipUp: mo[1] + female * .3, lipLo: mo[2] + female * .3,
     beard: female ? 0 : p.beard === 'goatee' ? .9 : beardV, goatee: p.beard === 'goatee' ? 1 : 0,
     must: female ? 0 : ({ none: 0, thin: .55, thick: 1, handlebar: 1 } as any)[p.mustache ?? 'none'], side: female ? 0 : ({ none: 0, short: .3, long: 1 } as any)[p.sideburns ?? 'none'],
     style: hs, hairline: ({ low: -.15, medium: 0, high: .2 } as any)[p.forehead] ?? 0, recede: hs === 'receding' ? 1 : 0, grey: clamp(((p.age ?? 35) - 42) / 28, 0, 1) * (p.hair_color === 'grey' ? 0 : 1),
@@ -123,6 +123,7 @@ export class FaceRig {
   U: Record<string, THREE.IUniform> = {}
   private glassGroup: THREE.Group | null = null
   private bun: THREE.Mesh
+  private curtain: THREE.Mesh
 
   constructor(src: THREE.BufferGeometry) {
     this.geo = src.clone()
@@ -167,8 +168,9 @@ export class FaceRig {
     this.hair = new THREE.Mesh(this.geo, hairMat)
     const bunMat = new THREE.MeshStandardMaterial({ color: '#3a2a20', roughness: 0.8 })
     this.bun = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 24), bunMat); this.bun.position.set(X0, 3.75, -1.25); this.bun.visible = false
+    this.curtain = makeCurtain()
     this.makeEyes()
-    this.root.add(this.head, this.hair, this.bun, this.extras, this.eyes)
+    this.root.add(this.head, this.hair, this.bun, this.curtain, this.extras, this.eyes)
   }
 
   private makeEyes() {
@@ -280,6 +282,11 @@ export class FaceRig {
       z += (L.lip + J.lip) * 6 * g2(qx, 0.5, y - 0.55, 0.18) * sm(1.2, 2.2, z)
       z += (L.chinZ + J.chin) * g2(qx, 0.6, y + 0.35, 0.45) * sm(1.0, 2.0, z)
       z -= L.cleft * 0.07 * g2(qx, 0.05, y + 0.3, 0.25) * sm(1.0, 2.0, z)
+      if (L.female) {   // slimmer neck and bust, no Adam's apple, softer brow bone
+        qx *= 1 - 0.13 * L.female * sm(-0.45, -1.3, y)
+        z -= 0.1 * L.female * g2(qx, 0.4, y + 1.3, 0.4) * sm(0.3, 1.0, z)
+        z -= 0.04 * L.female * g2(ax - 0.7, 0.6, y - 2.4, 0.25) * sm(0.8, 1.8, z)
+      }
       // ears (scale + protrusion)
       if (ax > 2.0 && z < 1.1 && y > 0.5 && y < 3.4) {
         const w = sm(2.0, 2.3, ax) * sm(-0.2, 0.2, 1.1 - z)
@@ -322,7 +329,10 @@ export class FaceRig {
     const st = L.style
     const none = st === 'bald'
     v('uStyle', none ? 0 : 1); v('uHairline', L.hairline); v('uRecede', L.recede)
-    v('uBackEdge', st === 'long' ? -1.6 : st === 'buzz' ? 1.9 : 1.55); v('uSideLong', st === 'long' ? 1 : 0)
+    v('uBackEdge', st === 'long' ? 0.6 : st === 'buzz' ? 1.9 : 1.55); v('uSideLong', 0)
+    this.curtain.visible = st === 'long'
+    { const cm = this.curtain.material as THREE.MeshStandardMaterial; cm.color.set(L.hair).lerp(new THREE.Color('#a8a8aa'), 0.7 * L.grey).multiplyScalar(1.5); cm.emissive.set(L.hair).lerp(new THREE.Color('#a8a8aa'), 0.7 * L.grey).multiplyScalar(0.28) }
+    this.curtain.scale.set(1 + L.width * 0.9, 1, 1)
     v('uThick', ({ buzz: 0.035, short: 0.15, receding: 0.15, swept: 0.19, curly: 0.2, long: 0.2, bun: 0.15 } as any)[st] ?? 0.15)
     v('uFrontVol', st === 'swept' ? 0.3 : st === 'curly' ? 0.15 : 0); v('uCurl', st === 'curly' ? 1 : 0)
     this.hair.visible = !none
@@ -355,6 +365,27 @@ export class FaceRig {
   }
 
   dispose() { this.geo.dispose() }
+}
+
+/** long hair: a smooth curtain from the crown, behind the ears, down to the shoulders */
+function makeCurtain() {
+  const curve = new THREE.CatmullRomCurve3([[2.0, 2.95], [2.3, 2.5], [2.46, 1.7], [2.46, 0.7], [2.34, -0.3], [2.1, -1.1], [1.82, -1.55]].map(([r, y]) => new THREE.Vector3(r, y, 0)))
+  const prof = curve.getPoints(40).map(p => new THREE.Vector2(p.x, p.y))
+  const g = new THREE.LatheGeometry(prof, 72, Math.PI * 0.42, Math.PI * 1.16)
+  const pos = g.attributes.position as THREE.BufferAttribute
+  for (let i = 0; i < pos.count; i++) {   // taper the strands toward the nape and curl the bottom edge slightly inward
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i)
+    const low = THREE.MathUtils.smoothstep(-y, 0.2, 1.6)
+    pos.setXYZ(i, x * (1 - 0.1 * low), y, z * (1 - 0.18 * low) - 0.05 * low)
+  }
+  g.computeVertexNormals()
+  const c = document.createElement('canvas'); c.width = 256; c.height = 64
+  const x = c.getContext('2d')!; x.fillStyle = '#c8c8c8'; x.fillRect(0, 0, 256, 64)
+  for (let i = 0; i < 700; i++) { const v = 150 + Math.random() * 105; x.strokeStyle = `rgba(${v},${v},${v},0.5)`; x.beginPath(); const px = Math.random() * 256; x.moveTo(px, 0); x.lineTo(px + (Math.random() - 0.5) * 6, 64); x.stroke() }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1); t.colorSpace = THREE.SRGBColorSpace
+  const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: '#3a2a20', map: t, roughness: 0.75, side: THREE.DoubleSide, emissive: '#000000' }))
+  m.position.set(X0, 0, -0.15); m.visible = false
+  return m
 }
 
 function mulberry(a: number) { return () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 } }

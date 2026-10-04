@@ -17,7 +17,7 @@ float hairEdgeY(vec3 q){
   float t = smoothstep(1.3,-0.7,q.z);
   float e = mix(front, uBackEdge, t);
   // long hair also hangs beside the face / over the shoulders
-  if (uSideLong > 0.5 && ax > 1.7) e = min(e, -0.9);
+  if (uSideLong > 0.5) e = mix(e, min(e, -0.9), smoothstep(1.55, 1.95, ax) * smoothstep(1.4, 0.7, q.z));
   return e;
 }
 float hairMask(vec3 pos){
@@ -51,13 +51,14 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
   vec3 col = base;
   float skinLum = dot(base, vec3(0.3,0.59,0.11));
   // real skin micro-variation from the scan's own albedo (high-pass), then pores + gentle mottling
-  col *= mix(1.0, clamp(texture2D(uDetail, vDet).r*2.0, 0.55, 1.6), 0.25);
+  col *= mix(1.0, clamp(texture2D(uDetail, vDet).r*2.0, 0.55, 1.6), 0.25 - 0.1*uFemale);
   col *= 0.99 + 0.02*vnoise(p*55.0);
   col *= 0.97 + 0.06*vnoise(p*7.0 + 3.0);
   // warm flush on cheeks / nose, cooler forehead
   float cheek = exp(-pow(length(vec2((abs(p.x)-1.25)*0.9, p.y-1.0)),2.0)*1.6);
   float noseF = exp(-pow(length(vec2(p.x*1.4, p.y-1.3)),2.0)*3.2);
   col = mix(col, col*vec3(1.08,0.9,0.88), (cheek*0.45+noseF*0.5)*front);
+  col = mix(col, col*vec3(1.07,0.86,0.88), uFemale*cheek*0.45*front);          // soft blush
 
   // ---- eyes (painted on the sculpted closed lids so shape/colour/size are fully controllable) ----
   float ex = EYE_Y;
@@ -94,7 +95,7 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
     float lash = exp(-pow((d.y - up)/0.016, 2.0)) * (1.0 - smoothstep(0.85,1.0,abs(ax)));
     col = mix(col, vec3(0.04,0.03,0.03), lash*0.85*front*(0.55+0.45*uFemale));
   }
-  col *= 1.0 - (0.12 + 0.10*uAge)*socket*front;
+  col *= 1.0 - (0.12 + 0.10*uAge + 0.06*uFemale)*socket*front;
   col = mix(col, eyeCol, eyeA*front);
 
   // ---- eyebrows ----
@@ -105,7 +106,7 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
     float t = (abs(p.x) - inner) / (outer - inner);
     if (p.x*s > 0.0 && t > 0.0 && t < 1.0){
       float yc = BROW_Y + uBrowUp + uBrowArch*0.05*sin(t*3.1416*0.9) - 0.08*t*t;
-      float th = (0.05 + 0.03*uBrowT) * (1.0 - 0.55*t*t) * (0.6+0.4*smoothstep(0.0,0.2,t));
+      float th = max(0.05 + 0.03*uBrowT, 0.036) * (1.0 - 0.55*t*t) * (0.6+0.4*smoothstep(0.0,0.2,t));
       float m = 1.0 - smoothstep(th*0.5, th, abs(p.y - yc));
       float st = vnoise(vec2(p.x*45.0, p.y*160.0));
       browA = max(browA, m * (0.55 + 0.45*st));

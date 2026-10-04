@@ -17,6 +17,8 @@ const FLOW = [
 export default function Home() {
   const nav = useNavigate()
   const [cases, setCases] = useState<any[]>([])
+  // dev/screenshots: ?sample={"sex":"female"} overrides the sample face
+  const [sample] = useState(() => { try { return { ...SAMPLE, ...JSON.parse(new URLSearchParams(location.search).get("sample") || "{}") } } catch { return SAMPLE } })
   useEffect(() => { api.cases().then(setCases).catch(() => {}) }, [])
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -31,7 +33,7 @@ export default function Home() {
           <div className="flex flex-wrap gap-2 mt-6"><Badge tone="steel">Academic prototype</Badge><Badge tone="warn">Approximation, never an identification</Badge></div>
         </div>
         <div className="card overflow-hidden relative h-[340px] md:h-[420px]">
-          <FaceViewer profile={SAMPLE} auto className="absolute inset-0" />
+          <FaceViewer profile={sample} auto={!new URLSearchParams(location.search).get('v')} className="absolute inset-0" />
           <div className="absolute bottom-3 left-3 text-[11px] text-graphite bg-white/80 px-2 py-1 rounded">Sample 3D face · drag to turn</div>
         </div>
       </section>

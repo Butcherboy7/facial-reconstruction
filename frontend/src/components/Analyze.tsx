@@ -3,11 +3,11 @@ import { api } from '../api'
 import { Badge } from '../App'
 import type { Ctx } from '../pages/Case'
 import FaceViewer, { VIEWS } from '../studio/FaceViewer'
-import { finalOf, renderAssets, VARIATIONS } from '../studio/actions'
+import { finalOf, renderAssets } from '../studio/actions'
+import { VARIATIONS, variationsFor } from '../studio/logic'
 import { ArrowRight, Rotate } from '../icons'
 
 const AGES = [25, 30, 35, 40, 45, 50, 55]
-const VARS = Object.entries(VARIATIONS).map(([k, v]) => [k, v.label])
 const SUB = [['sketch', 'Forensic sketch'], ['3d', '3D reconstruction'], ['age', 'Age simulation'], ['var', 'Appearance variations']]
 
 export default function Analyze({ ctx }: { ctx: Ctx }) {
@@ -30,6 +30,8 @@ export default function Analyze({ ctx }: { ctx: Ctx }) {
   const isFinal = (u: string) => final === u
   const sk = of('sketch').at(-1)
   const fin = finalOf(data)
+  // one card per variation, and only those that still make sense for this person (no beard on a woman, etc.)
+  const vars = of('variation').filter((a, i, arr) => VARIATIONS[a.meta?.variation]?.applies(fin?.profile ?? {}) && arr.findIndex(b => b.meta?.variation === a.meta?.variation) === i)
 
   const Card = ({ a, tag }: { a: any; tag?: string }) => (
     <div className={`card overflow-hidden ${isFinal(a.url) ? 'ring-2 ring-steel' : ''}`}>
@@ -59,7 +61,7 @@ export default function Analyze({ ctx }: { ctx: Ctx }) {
             <div className="card overflow-hidden">{sk ? <img src={sk.url} className="w-full aspect-[4/5] object-cover object-top" /> : <div className="aspect-square grid place-items-center paper-bg text-mute text-sm">No sketch generated yet</div>}<div className="p-3 flex items-center justify-between"><span className="label">Forensic pencil sketch</span>
               <button className="btn btn-primary !h-8 !text-[12px]" disabled={!!busy} onClick={() => run('sketch', () => api.sketch(id))}>{busy === 'sketch' ? 'Rendering…' : sk ? 'Regenerate' : 'Generate sketch'}</button></div></div>
           </div>
-          <p className="text-[12px] text-mute mt-3 max-w-3xl">The sketch is made by a tonal dodge-blend and edge pass over the reconstruction, so it keeps the same facial structure. It is image processing, not a hand-drawn composite.</p>
+          <p className="text-[12px] text-mute mt-3 max-w-3xl">The sketch traces contour lines and adds directional pencil shading over the reconstruction, so it keeps the same facial structure. It is image processing, not a hand-drawn composite.</p>
         </div>
       )}
 
@@ -98,10 +100,13 @@ export default function Analyze({ ctx }: { ctx: Ctx }) {
       {sub === 'var' && (
         <div className="fade">
           <div className="flex flex-wrap items-center gap-2 mb-4"><span className="label mr-2">Generate</span>
-            {VARS.map(([k, l]) => <button key={k} className="chip" disabled={!!busy} onClick={() => run('var', () => renderAssets(id, fin!, [{ kind: 'variation', label: VARIATIONS[k].label, profile: VARIATIONS[k].change(fin!.profile), meta: { variation: k } }]))}>{busy === 'var' ? '…' : '+ ' + l}</button>)}</div>
+            {fin && variationsFor(fin.profile).map(([k, v]) => {
+              const made = vars.some(a => a.meta?.variation === k)
+              return <button key={k} className="chip" data-on={made} disabled={!!busy || made} title={made ? 'Already made' : undefined} onClick={() => run('var', () => renderAssets(id, fin!, [{ kind: 'variation', label: v.label, profile: v.change(fin!.profile), meta: { variation: k } }]))}>{made ? '✓ ' + v.label : busy === 'var' ? '…' : '+ ' + v.label}</button>
+            })}</div>
           <p className="text-[12px] text-mute mb-4">Each variation changes only the stated trait on the same 3D face; the underlying face structure stays identical.</p>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger">{of('variation').map(a => <Card key={a.id} a={a} />)}</div>
-          {!of('variation').length && <div className="card p-10 text-center text-mute text-sm paper-bg">No variations yet.</div>}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 stagger">{vars.map(a => <Card key={a.id} a={a} />)}</div>
+          {!vars.length && <div className="card p-10 text-center text-mute text-sm paper-bg">No variations yet.</div>}
         </div>
       )}
     </div>
