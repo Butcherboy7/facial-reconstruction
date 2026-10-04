@@ -119,7 +119,6 @@ export class FaceRig {
   extras = new THREE.Group()
   eyes = new THREE.Group()
   plugMat!: THREE.MeshStandardMaterial
-  mouthPlug!: THREE.Mesh
   eyeMeshes: THREE.Mesh[] = []
   U: Record<string, THREE.IUniform> = {}
   private glassGroup: THREE.Group | null = null
@@ -174,8 +173,6 @@ export class FaceRig {
 
   private makeEyes() {
     this.plugMat = new THREE.MeshStandardMaterial({ color: '#c48f66', roughness: 0.7 })
-    this.mouthPlug = new THREE.Mesh(new THREE.SphereGeometry(1, 24, 16), new THREE.MeshStandardMaterial({ color: '#7a4a44', roughness: 0.8 }))
-    this.mouthPlug.scale.set(0.5, 0.2, 0.22); this.mouthPlug.position.set(X0, 0.37, 1.8); this.eyes.add(this.mouthPlug)
     for (const s of [-1, 1]) {
       const m = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 20), this.plugMat)
       m.userData.side = s; this.eyes.add(m); this.eyeMeshes.push(m)
@@ -279,8 +276,6 @@ export class FaceRig {
   private setLook(L: Look) {
     const U = this.U, v = (k: string, x: number) => { U[k].value = x }
     this.plugMat.color.set(L.skin).multiplyScalar(0.8)
-    ;(this.mouthPlug.material as THREE.MeshStandardMaterial).color.set(L.lip_c).multiplyScalar(0.7)
-    this.mouthPlug.scale.x = 0.5 * L.mouthW
     ;(U.uSkin.value as THREE.Color).set(L.skin); (U.uHair.value as THREE.Color).set(L.hair); (U.uIris.value as THREE.Color).set(L.iris); (U.uLip.value as THREE.Color).set(L.lip_c)
     v('uEyeSpacing', L.eyeSpacing); v('uEyeW', L.eyeW); v('uEyeH', L.eyeH); v('uEyeTilt', L.eyeTilt); v('uEyeLid', L.eyeLid)
     v('uBrowT', L.browT); v('uBrowArch', L.browArch); v('uBrowUp', L.browUp)

@@ -35,8 +35,10 @@ export default function Report({ ctx }: { ctx: Ctx }) {
         </div>
         {v && <p className="text-[12px] text-graphite mt-3 leading-relaxed"><b>Generation prompt:</b> {v.prompt}</p>}
 
-        <H>Reconstruction candidates {v && `(Version ${String(v.n).padStart(2, '0')}, ${v.mode.toUpperCase()} mode)`}</H>
+        {v && v.candidates.length > 1 && <>
+        <H>Reconstruction candidates {`(Version ${String(v.n).padStart(2, '0')}, ${v.mode.toUpperCase()} mode)`}</H>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">{v?.candidates.map((x: any, i: number) => <div key={i} className={`${v.selected === i ? 'ring-2 ring-steel' : ''} rounded`}><img src={x.url} className="w-full aspect-[4/5] object-cover object-top rounded" /><div className="text-[11px] mt-1 text-mute">Candidate {'ABCDE'[i]}{v.selected === i ? ' · selected' : ''}</div></div>)}</div>
+        </>}
 
         {c.final_image && <><H>Selected reconstruction &amp; pencil sketch</H>
           <div className="grid grid-cols-2 gap-4 max-w-xl"><img src={c.final_image} className="rounded aspect-[4/5] object-cover object-top w-full" />{of('sketch').at(-1) ? <img src={of('sketch').at(-1).url} className="rounded aspect-[4/5] object-cover object-top w-full" /> : <div className="aspect-square bg-[#f6f6f3] grid place-items-center text-xs text-mute rounded">Sketch not generated</div>}</div></>}
@@ -60,7 +62,7 @@ export default function Report({ ctx }: { ctx: Ctx }) {
         <H>System limitations</H>
         <ul className="text-[12px] text-graphite leading-relaxed list-disc pl-5 space-y-1">
           <li>A witness description is uncertain; generated faces are computational approximations, not reproductions of an actual person.</li>
-          <li>Candidate faces are rendered by an in-browser 3D character model driven by the witness answers; they are stylised approximations, not photographs.</li>
+          <li>Faces are rendered by an in-browser 3D character model driven by the witness answers; they are stylised approximations, not photographs.</li>
           <li>The 3D face is a stylised model reshaped by the witness answers (head scan by Lee Perry-Smith, CC BY 3.0). Age and appearance variations are rendered from the same model and are approximations only.</li>
           <li>Similarity scores are raw model output on a tiny synthetic reference set and carry no forensic evidential value.</li>
         </ul>
