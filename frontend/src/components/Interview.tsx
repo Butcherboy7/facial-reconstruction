@@ -174,7 +174,7 @@ export default function Interview({ ctx }: { ctx: Ctx }) {
             <span className="text-[11.5px] text-mute">Redraws the current face as a photograph (takes a few seconds).</span>
             {pErr && <span className="text-[12px] text-warn">{pErr}</span>}
           </div>}
-          <p className="text-[11.5px] text-mute mt-2">A simple generic face that updates as you answer. Drag to turn the head.</p>
+          <p className="text-[11.5px] text-mute mt-2">Live 3D face. It updates with every answer; drag to turn the head.</p>
           <div className="mt-4 flex flex-wrap gap-1.5">
             {Object.entries(profile).filter(([k, v]) => v && !(Array.isArray(v) && !v.length) && k !== 'age').slice(0, 14).map(([k, v]) => (
               <span key={k} className="text-[11px] px-2 py-0.5 rounded bg-[#f1f1ee] text-graphite"><span className="text-mute">{k.replace('_', ' ')}:</span> {Array.isArray(v) ? v.length + ' marks' : String(v).replace('_', ' ')}</span>

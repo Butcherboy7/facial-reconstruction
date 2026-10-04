@@ -179,8 +179,9 @@ export class FaceRig {
     }
   }
 
-  /** remove the sculpted closed-lid slit so painted open eyes read cleanly */
+  /** close the open mouth in the scan and gently even out the under-jaw / neck, leaving lips and chin untouched */
   private smoothEyes() {
+    this.closeMouth()
     const pos = this.geo.attributes.position as THREE.BufferAttribute
     const idx = this.geo.index!.array
     const nb: number[][] = Array.from({ length: pos.count }, () => [])
@@ -188,22 +189,52 @@ export class FaceRig {
     const w = new Float32Array(pos.count)
     for (let i = 0; i < pos.count; i++) {
       const x = pos.getX(i) - X0, y = pos.getY(i), z = pos.getZ(i)
-      if (z < 1.2) continue
-      w[i] = Math.max(g2(x, 2.1, y + 0.6, 0.75), 0.8 * sm(-0.6, -1.0, y) * (1 - sm(1.6, 2.4, Math.abs(x))))
+      if (z < 0.2) continue
+      w[i] = sm(-0.5, -0.75, y) * (1 - sm(-1.5, -1.9, y)) * (1 - sm(1.5, 2.2, Math.abs(x)))
     }
-    for (let it = 0; it < 50; it++) {
-      const next = new Float32Array(pos.count * 3)
+    // Taubin smoothing (shrink / inflate pairs) so the neck keeps its volume
+    const step = (k: number) => {
+      const next = new Float32Array(pos.array as Float32Array)
       for (let i = 0; i < pos.count; i++) {
-        let x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i)
-        if (w[i] > 0.02 && nb[i].length) {
-          let ax = 0, ay = 0, az = 0; for (const j of nb[i]) { ax += pos.getX(j); ay += pos.getY(j); az += pos.getZ(j) }
-          const n = nb[i].length, k = Math.min(1, w[i] * 1.4)
-          x += (ax / n - x) * k; y += (ay / n - y) * k; z += (az / n - z) * k
-        }
-        next[i * 3] = x; next[i * 3 + 1] = y; next[i * 3 + 2] = z
+        if (w[i] < 0.02 || !nb[i].length) continue
+        let ax = 0, ay = 0, az = 0; for (const j of nb[i]) { ax += pos.getX(j); ay += pos.getY(j); az += pos.getZ(j) }
+        const n = nb[i].length, f = k * w[i]
+        next[i * 3] += (ax / n - pos.getX(i)) * f; next[i * 3 + 1] += (ay / n - pos.getY(i)) * f; next[i * 3 + 2] += (az / n - pos.getZ(i)) * f
       }
-      pos.array.set(next); pos.needsUpdate = true
+      pos.array.set(next)
     }
+    for (let it = 0; it < 30; it++) { step(0.6); step(-0.63) }
+    pos.needsUpdate = true
+  }
+
+  /** fill the mouth opening (boundary loop just behind the lips) with a fan so no inner mouth / teeth show */
+  private closeMouth() {
+    const g = this.geo, pos = g.attributes.position as THREE.BufferAttribute, idx = Array.from(g.index!.array)
+    const cnt = new Map<string, number>(), dir = new Map<string, [number, number]>()
+    for (let i = 0; i < idx.length; i += 3) for (let k = 0; k < 3; k++) {
+      const a = idx[i + k], b = idx[i + (k + 1) % 3], key = a < b ? a + ',' + b : b + ',' + a
+      cnt.set(key, (cnt.get(key) || 0) + 1); dir.set(key, [a, b])
+    }
+    const next = new Map<number, number>()
+    for (const [key, c] of cnt) if (c === 1) { const [a, b] = dir.get(key)!; const x = (pos.getX(a) + pos.getX(b)) / 2 - X0, y = (pos.getY(a) + pos.getY(b)) / 2, z = (pos.getZ(a) + pos.getZ(b)) / 2
+      if (Math.abs(x) < 0.6 && y > 0.1 && y < 0.6 && z > 1.7) next.set(b, a) }
+    if (next.size < 8) return
+    const start = next.keys().next().value as number
+    const loop: number[] = []; let cur = start
+    for (let guard = 0; guard < 500; guard++) { loop.push(cur); const nx = next.get(cur); if (nx === undefined || nx === start) break; cur = nx }
+    if (loop.length < 8) return
+    let cx = 0, cy = 0, cz = 0; for (const i of loop) { cx += pos.getX(i); cy += pos.getY(i); cz += pos.getZ(i) }
+    cx /= loop.length; cy /= loop.length; cz /= loop.length
+    const n = pos.count, arr = new Float32Array(n * 3 + 3); arr.set(pos.array as Float32Array); arr.set([cx, cy, cz + 0.02], n * 3)
+    g.setAttribute('position', new THREE.BufferAttribute(arr, 3))
+    for (const name of Object.keys(g.attributes)) {
+      if (name === 'position') continue
+      const at = g.attributes[name] as THREE.BufferAttribute, s = at.itemSize, src = at.array as Float32Array
+      const out = new (src.constructor as any)(src.length + s); out.set(src); for (let k = 0; k < s; k++) out[src.length + k] = src[loop[0] * s + k]
+      g.setAttribute(name, new THREE.BufferAttribute(out, s, at.normalized))
+    }
+    for (let k = 0; k < loop.length; k++) idx.push(loop[(k + 1) % loop.length], loop[k], n)
+    g.setIndex(idx)
   }
 
   apply(L: Look, jitter = 0, seed = 1) {
@@ -227,7 +258,8 @@ export class FaceRig {
       const head = sm(-0.9, 0.3, y) * (1 - sm(3.7, 4.2, y))
       qx *= 1 + (L.width + J.width) * head
       const wj = Math.exp(-(((y - 0.2) / 0.85) ** 2)) * (z > -1.2 ? 1 : 0.4)
-      qx *= 1 + (L.jaw + J.jaw) * 0.5 * wj
+      qx *= 1 + (L.jaw + J.jaw) * 0.3 * wj
+      qx *= 1 - 0.07 * Math.exp(-(((y + 0.05) / 0.75) ** 2)) * (z > 0 ? 1 : 0.5)   // the scan's heavy lower cheeks, slimmed
       qx *= 1 - L.chinPoint * Math.exp(-(((y + 0.35) / 0.5) ** 2))
       // face length: lower face drops, bust follows
       y -= (L.length + J.length) * 4.5 * sm(1.3, -0.4, y)

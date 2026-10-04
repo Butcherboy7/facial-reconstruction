@@ -86,17 +86,81 @@ def validate(img):
     return {"face_detected": True, "det_score": round(float(f[-1]), 3), "eye_tilt_deg": round(tilt, 1), "frontal": tilt < 8}
 
 
+def _streaks(h, w, angle, length, seed):
+    """directional pencil-stroke texture (0..1): noise smeared along one direction"""
+    rng = np.random.default_rng(seed)
+    n = (rng.random((h, w)) > 0.82).astype(np.float32)
+    k = np.zeros((length, length), np.float32)
+    c, r = length // 2, length // 2 - 1
+    dx, dy = np.cos(np.radians(angle)) * r, -np.sin(np.radians(angle)) * r
+    cv2.line(k, (int(c - dx), int(c - dy)), (int(c + dx), int(c + dy)), 1.0, 1, cv2.LINE_AA)
+    t = cv2.filter2D(n, -1, k / k.sum())
+    return np.clip(t / (t.mean() * 2.2 + 1e-6), 0, 1)
+
+
 def pencil_sketch(img):
-    h, w = img.shape[:2]
-    g = cv2.createCLAHE(2.0, (8, 8)).apply(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY))
-    inv = 255 - cv2.GaussianBlur(g, (0, 0), 5)
-    dodge = np.clip(g.astype(np.float32) * 255 / (255 - inv.astype(np.float32) + 1), 0, 255)
-    edges = cv2.adaptiveThreshold(cv2.GaussianBlur(g, (0, 0), 1.4), 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 9, 7)
-    s = 0.78 * dodge + 0.22 * edges.astype(np.float32)
-    s = 255 * (np.clip(s, 0, 255) / 255) ** 2.3
-    noise = cv2.GaussianBlur(np.random.default_rng(1).random((h, w)).astype(np.float32), (0, 0), 1.2)
-    s = np.clip(s * (0.94 + 0.12 * noise * 3), 0, 255)
-    return np.dstack([s * 0.985 + 3, s * 0.99 + 2, s]).clip(0, 255).astype(np.uint8)
+    """hand-drawn style graphite sketch: XDoG contour lines + directional hatching for tone + paper grain"""
+    h0, w0 = img.shape[:2]
+    S = 2                                                    # work at 2x for finer strokes
+    im = cv2.resize(img, (w0 * S, h0 * S), interpolation=cv2.INTER_CUBIC)
+    h, w = im.shape[:2]
+    # subject mask: anything that differs from the plain backdrop; fade the bust out like a drawn vignette
+    corners = np.concatenate([im[:30, :30].reshape(-1, 3), im[:30, -30:].reshape(-1, 3)]).astype(np.float32)
+    dist = np.linalg.norm(im.astype(np.float32) - np.median(corners, axis=0), axis=2)
+    mask = cv2.GaussianBlur(np.clip((dist - 14) / 22, 0, 1), (0, 0), 3 * S)
+    yy = np.linspace(0, 1, h)[:, None]
+    mask *= np.clip((0.97 - yy) / 0.2, 0, 1) ** 1.3
+    # smooth skin / stubble noise but keep features
+    det = im
+    for _ in range(3):
+        det = cv2.bilateralFilter(det, 9, 40, 7)
+    sm = cv2.medianBlur(cv2.medianBlur(det, 4 * S + 3), 2 * S + 1)   # stubble / pores gone (tone only)
+    m = (mask > 0.5) & (np.arange(h)[:, None] < int(h * 0.7))   # tonal range from head, not shoulders
+
+    def norm(x):
+        x = cv2.cvtColor(x, cv2.COLOR_BGR2GRAY).astype(np.float32) / 255
+        if m.sum() > 100:
+            lo, med = np.percentile(x[m], 4), np.percentile(x[m], 55)
+            x = np.clip(0.74 + (x - med) * (0.6 / max(med - lo, 0.04)), 0.06, 1)
+        return cv2.createCLAHE(1.6, (6, 6)).apply((x * 255).astype(np.uint8)).astype(np.float32) / 255
+    g, gd = norm(sm), norm(det)
+    # contours: extended difference of gaussians
+    g1 = cv2.GaussianBlur(gd, (0, 0), 0.9 * S); g2 = cv2.GaussianBlur(gd, (0, 0), 1.6 * 0.9 * S)
+    d = g1 - 0.985 * g2
+    line = np.where(d >= -0.004, 1.0, 1 + np.tanh(180 * (d + 0.004)))
+    # drop specks (stubble dots, pores): keep only stroke-sized line pieces
+    ink = (line < 0.6).astype(np.uint8)
+    n, lab, stats, _ = cv2.connectedComponentsWithStats(ink, connectivity=8)
+    small = np.zeros(n, bool); small[1:] = stats[1:, cv2.CC_STAT_AREA] < 30 * S * S
+    line = np.where(small[lab] & (ink > 0), 1.0, line)
+    # texture areas (stubble, pores) fire edges everywhere: fade lines where edge density is high and tone is mid
+    dens = cv2.GaussianBlur(ink.astype(np.float32), (0, 0), 5 * S)
+    line = 1 - (1 - line) * (1 - np.clip((dens - 0.16) / 0.12, 0, 1) * 0.85)
+    line = cv2.GaussianBlur(line.astype(np.float32), (0, 0), 0.6)
+    # tone: darker areas get more (and crossed) strokes
+    tone = cv2.GaussianBlur(g, (0, 0), 2.0 * S)
+    dark = np.clip((0.95 - tone) / 0.8, 0, 1)
+    st1 = _streaks(h, w, 58, 13 * S, 3)
+    st2 = _streaks(h, w, -35, 11 * S, 7)
+    st3 = _streaks(h, w, 80, 9 * S, 11)
+    shade = 1 - 0.55 * dark ** 1.1 * (0.35 + 0.65 * st1)
+    shade *= 1 - 0.45 * np.clip((dark - 0.35) / 0.65, 0, 1) * (0.3 + 0.7 * st2)
+    shade *= 1 - 0.35 * np.clip((dark - 0.65) / 0.35, 0, 1) * (0.3 + 0.7 * st3)
+    soft = 1 - 0.22 * dark                                  # smudged graphite under the strokes
+    pencil = np.clip(line * shade * soft, 0, 1)
+    pencil = 1 - (1 - pencil) * mask                        # paper outside the subject
+    # paper grain (graphite catches on the tooth of the paper)
+    rng = np.random.default_rng(1)
+    grain = cv2.GaussianBlur(rng.random((h, w)).astype(np.float32), (0, 0), 0.8)
+    pencil = 1 - (1 - pencil) * (0.78 + 0.44 * grain)
+    fib = cv2.GaussianBlur(rng.random((h // 4 + 1, w // 4 + 1)).astype(np.float32), (0, 0), 2)
+    fib = cv2.resize(fib, (w, h))
+    pencil = np.clip(pencil * (0.985 + 0.03 * fib), 0, 1)
+    out = cv2.resize(pencil, (w0, h0), interpolation=cv2.INTER_AREA)
+    paper = np.array([238, 242, 246], np.float32) / 255      # BGR warm paper
+    lead = np.array([58, 54, 52], np.float32) / 255          # graphite
+    col = paper[None, None] * out[..., None] + lead[None, None] * (1 - out[..., None])
+    return (col * 255).clip(0, 255).astype(np.uint8)
 
 
 def _hair_weight(img, f, thresh=135, span=70):

@@ -258,7 +258,7 @@ def add_asset(cid, kind, label, path, meta=None):
 @app.post("/api/generate-sketch")
 def generate_sketch(b: CaseOnly):
     _, im = final_img(b.case_id)
-    return add_asset(b.case_id, "sketch", "Forensic pencil sketch", save(b.case_id, engine.pencil_sketch(im), "sketch"), {"method": "OpenCV dodge-blend + edge pass"})
+    return add_asset(b.case_id, "sketch", "Forensic pencil sketch", save(b.case_id, engine.pencil_sketch(im), "sketch"), {"method": "OpenCV XDoG contours + directional hatching"})
 
 
 @app.post("/api/generate-3d")

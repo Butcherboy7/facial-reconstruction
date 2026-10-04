@@ -6,9 +6,10 @@ export const W = 512, H = 640
 export const TARGET = new THREE.Vector3(X0, 1.45, 1)
 
 export function addStudioLights(scene: THREE.Scene) {
-  scene.add(new THREE.AmbientLight(0xffffff, 0.7))
-  const key = new THREE.DirectionalLight(0xffffff, 2.4); key.position.set(4, 5, 9); scene.add(key)
-  const fill = new THREE.DirectionalLight(0xcfe0ff, 0.8); fill.position.set(-6, 2, 5); scene.add(fill)
+  scene.add(new THREE.HemisphereLight(0xfff4ea, 0x6a5a52, 0.95))
+  const key = new THREE.DirectionalLight(0xfff1e4, 2.3); key.position.set(4, 5, 9); scene.add(key)
+  const fill = new THREE.DirectionalLight(0xd6e4ff, 0.7); fill.position.set(-7, 1.5, 5); scene.add(fill)
+  const rim = new THREE.DirectionalLight(0xffffff, 1.1); rim.position.set(-3, 4, -8); scene.add(rim)
 }
 
 let ctx: { r: THREE.WebGLRenderer; scene: THREE.Scene; cam: THREE.PerspectiveCamera; rig: FaceRig } | null = null

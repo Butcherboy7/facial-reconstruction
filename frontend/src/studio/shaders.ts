@@ -9,7 +9,7 @@ float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
 const float X0 = -0.07;
 const float EYE_Y = 1.79;
 const float BROW_Y = 2.34;
-const float MOUTH_Y = 0.55;
+const float MOUTH_Y = 0.44;
 uniform float uHairline; uniform float uRecede; uniform float uBackEdge; uniform float uSideLong; uniform float uStyle;
 float hairEdgeY(vec3 q){
   float ax = abs(q.x);
@@ -75,16 +75,16 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
     float inside = 1.0 - smoothstep(0.9, 1.0, max(yn, abs(d.x)/hw));
     socket = max(socket, exp(-pow(length(vec2(d.x/(hw*2.2), d.y/(hh*5.0))),2.0)*1.2));
     if (inside > 0.0){
-      vec3 scl = mix(vec3(0.84,0.82,0.79), vec3(0.6,0.5,0.47), pow(abs(ax),2.0));
-      scl *= 1.0 - 0.5*smoothstep(0.2,1.0,yn)*step(0.0,d.y);
-      float ir = hh*1.0; float rr = length(d - vec2(0.0, -0.01));
+      vec3 scl = mix(vec3(0.8,0.77,0.74), vec3(0.58,0.48,0.45), pow(abs(ax),1.6));
+      scl *= 1.0 - 0.45*smoothstep(0.0,1.0,yn)*step(0.0,d.y);   // lid shadow on the white
+      float ir = hh*1.3; float rr = length(d - vec2(0.0, 0.02));   // iris tucked under the upper lid
       float irisM = 1.0 - smoothstep(ir*0.9, ir, rr);
       float ang = atan(d.y, d.x);
       vec3 ic = uIris * (0.7 + 0.5*vnoise(vec2(ang*3.0, rr*30.0)));
-      ic = mix(ic, ic*0.45, smoothstep(ir*0.62, ir, rr));
+      ic = mix(ic, ic*0.45, smoothstep(ir*0.62, ir, rr)); ic *= 1.0 - 0.35*smoothstep(0.1,0.9,yn)*step(0.0,d.y);
       float pup = 1.0 - smoothstep(ir*0.36, ir*0.42, rr);
       vec3 e = mix(scl, ic, irisM); e = mix(e, vec3(0.02), pup*irisM);
-      e += vec3(1.0) * (1.0 - smoothstep(0.0, ir*0.16, length(d - vec2(-ir*0.32, ir*0.35)))) * 0.9;
+      e += vec3(1.0) * (1.0 - smoothstep(0.0, ir*0.13, length(d - vec2(-ir*0.3, ir*0.25)))) * 0.75;
       float rim = smoothstep(0.78, 1.0, max(yn, abs(d.x)/hw*0.9));
       e = mix(e, vec3(0.05,0.03,0.03), rim*(d.y>0.0?0.95:0.45));
       eyeCol = mix(eyeCol, e, inside); eyeA = max(eyeA, inside);
@@ -120,8 +120,8 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
   float uh = 0.07*uLipUp, lh = 0.085*uLipLo;
   float lipV = my > 0.0 ? 1.0 - smoothstep(0.7,1.0,my/uh) : 1.0 - smoothstep(0.7,1.0,-my/lh);
   float lip = lx*lipV*front;
-  col = mix(col, uLip, lip*0.85);
-  col *= 1.0 - 0.55*exp(-pow(my/0.013,2.0))*lx*front;                      // mouth line
+  col = mix(col, mix(col, uLip, 0.75), lip*(0.55 + 0.25*(1.0-smoothstep(0.0,0.9,abs(p.x)/hw))));
+  col *= 1.0 - 0.45*exp(-pow(my/0.012,2.0))*lx*front;                      // mouth line
   col *= 1.0 - 0.1*exp(-pow((my+lh*1.55)/0.05,2.0))*lx*front;               // shadow under lower lip
 
   // ---- facial hair ----
