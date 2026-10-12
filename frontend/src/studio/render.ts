@@ -1,12 +1,18 @@
 import * as THREE from 'three'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import { FaceRig, loadHeadGeometry, lookFromProfile, X0 } from './rig'
 import type { Profile } from './rig'
 
 export const W = 512, H = 640
 export const TARGET = new THREE.Vector3(X0, 1.45, 1)
 
-export function addStudioLights(scene: THREE.Scene) {
-  scene.add(new THREE.HemisphereLight(0xfff4ea, 0x6a5a52, 0.95))
+export function addStudioLights(scene: THREE.Scene, renderer?: THREE.WebGLRenderer) {
+  if (renderer) {   // soft studio reflections: natural skin sheen and believable lens highlights
+    const pm = new THREE.PMREMGenerator(renderer)
+    scene.environment = pm.fromScene(new RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.22
+    pm.dispose()
+  }
+  scene.add(new THREE.HemisphereLight(0xfff4ea, 0x6a5a52, renderer ? 0.7 : 0.95))
   const key = new THREE.DirectionalLight(0xfff1e4, 2.3); key.position.set(4, 5, 9); scene.add(key)
   const fill = new THREE.DirectionalLight(0xd6e4ff, 0.7); fill.position.set(-7, 1.5, 5); scene.add(fill)
   const rim = new THREE.DirectionalLight(0xffffff, 1.1); rim.position.set(-3, 4, -8); scene.add(rim)
@@ -19,7 +25,7 @@ async function init() {
   const r = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true })
   r.setSize(W, H, false); r.setPixelRatio(1)
   const scene = new THREE.Scene(); scene.background = new THREE.Color('#d7dce0')
-  addStudioLights(scene)
+  addStudioLights(scene, r)
   const cam = new THREE.PerspectiveCamera(26, W / H, 0.1, 100)
   cam.position.set(X0, 1.55, 15.5); cam.lookAt(TARGET)
   const rig = new FaceRig(await loadHeadGeometry())

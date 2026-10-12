@@ -341,26 +341,49 @@ export class FaceRig {
     this.buildGlasses(L.glasses)
   }
 
+  /** glasses fitted to the morphed head: lenses rest on the nose bridge, arms follow the side of the head over the ears */
   private buildGlasses(on: boolean) {
     if (this.glassGroup) { this.extras.remove(this.glassGroup); this.glassGroup = null }
     if (!on) return
-    const gp = new THREE.Group()
-    const mat = new THREE.MeshStandardMaterial({ color: '#1b1c20', roughness: 0.35, metalness: 0.4 })
-    const lens = new THREE.MeshStandardMaterial({ color: '#cfe3ee', transparent: true, opacity: 0.16, roughness: 0.05 })
-    const zf = 2.55, ey = 1.78, es = this.U.uEyeX.value as number
-    for (const s of [-1, 1]) {
-      const cx = X0 + s * es, w = 0.5, h = 0.34, r = 0.2
-      const pts: THREE.Vector3[] = []
-      for (let k = 0; k <= 48; k++) { const t = (k / 48) * Math.PI * 2; const c = Math.cos(t), sn = Math.sin(t)
-        const sx = Math.sign(c) * Math.pow(Math.abs(c), 0.55), sy = Math.sign(sn) * Math.pow(Math.abs(sn), 0.55)
-        pts.push(new THREE.Vector3(cx + sx * w, ey + sy * h, zf - 0.05 * Math.abs(sx))) }
-      const frame = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 96, 0.045, 8, true), mat)
-      const ln = new THREE.Mesh(new THREE.CircleGeometry(1, 40), lens); ln.scale.set(w * 0.98, h * 0.98, 1); ln.position.set(cx, ey, zf - 0.04)
-      const arm = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(cx + s * w, ey + 0.05, zf - 0.08), new THREE.Vector3(X0 + s * 1.62, ey + 0.08, 1.6), new THREE.Vector3(X0 + s * 1.72, ey + 0.1, 0.2)]), 24, 0.035, 6, false), mat)
-      gp.add(frame, ln, arm)
-      void r
+    const pos = this.geo.attributes.position as THREE.BufferAttribute
+    const ey = 1.8, es = this.U.uEyeX.value as number
+    let bridgeZ = -9, browZ = -9
+    const side = [1.25, 0.6, 0.0, -0.45].map(() => 0)
+    for (let i = 0; i < pos.count; i++) {
+      const x = pos.getX(i) - X0, y = pos.getY(i), z = pos.getZ(i), ax = Math.abs(x)
+      if (ax < 0.16 && Math.abs(y - (ey - 0.02)) < 0.1) bridgeZ = Math.max(bridgeZ, z)
+      if (Math.abs(ax - es) < 0.2 && Math.abs(y - (ey + 0.42)) < 0.1) browZ = Math.max(browZ, z)
+      if (Math.abs(y - (ey + 0.1)) < 0.14) [1.25, 0.6, 0.0, -0.45].forEach((zs, k) => { if (Math.abs(z - zs) < 0.16) side[k] = Math.max(side[k], ax) })
     }
-    gp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([new THREE.Vector3(X0 - 0.2, ey + 0.08, zf - 0.06), new THREE.Vector3(X0, ey + 0.14, zf + 0.02), new THREE.Vector3(X0 + 0.2, ey + 0.08, zf - 0.06)]), 12, 0.04, 6, false), mat))
+    const zf = Math.max(bridgeZ + 0.02, browZ + 0.06)   // lens plane: on the bridge, clear of the brow
+    const gp = new THREE.Group()
+    const frameM = new THREE.MeshPhysicalMaterial({ color: '#1c1d21', roughness: 0.3, metalness: 0.25, clearcoat: 0.7, clearcoatRoughness: 0.2 })
+    const lensM = new THREE.MeshPhysicalMaterial({ color: '#ffffff', transparent: true, opacity: 0.1, roughness: 0.03, clearcoat: 1, depthWrite: false })
+    const w = 0.47, h = 0.33, wrap = 0.14
+    const hinge: THREE.Vector3[] = []
+    for (const s of [-1, 1]) {
+      const lens = new THREE.Group(); lens.position.set(X0 + s * es, ey, zf); lens.rotation.y = s * wrap
+      const pts: THREE.Vector3[] = []
+      for (let k = 0; k < 64; k++) {
+        const t = (k / 64) * Math.PI * 2, c = Math.cos(t), sn = Math.sin(t)
+        const sx = Math.sign(c) * Math.pow(Math.abs(c), 0.42), sy = Math.sign(sn) * Math.pow(Math.abs(sn), 0.5)
+        pts.push(new THREE.Vector3(sx * w, sy * h - (sy < 0 ? 0.04 * (1 - Math.abs(sx)) : 0), 0))
+      }
+      lens.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts, true), 128, 0.026, 8, true), frameM))
+      const glass = new THREE.Mesh(new THREE.CircleGeometry(1, 48), lensM); glass.scale.set(w * 0.99, h * 0.99, 1); lens.add(glass)
+      gp.add(lens); lens.updateMatrixWorld()
+      hinge.push(new THREE.Vector3(s * w, 0.06, 0).applyMatrix4(lens.matrix))
+      // arm: hinge -> along the temple -> over the ear -> down behind it
+      const hx = hinge[hinge.length - 1]
+      const at = (k: number, dy: number, z: number) => new THREE.Vector3(X0 + s * (side[k] + 0.05), ey + dy, z)
+      const arm = new THREE.CatmullRomCurve3([hx, new THREE.Vector3(hx.x + s * 0.06, hx.y, hx.z - 0.25), at(0, 0.1, 1.25), at(1, 0.1, 0.6), at(2, 0.12, 0.0), at(3, -0.05, -0.45), new THREE.Vector3(X0 + s * (side[3] - 0.05), ey - 0.45, -0.75)])
+      gp.add(new THREE.Mesh(new THREE.TubeGeometry(arm, 48, 0.022, 6, false), frameM))
+      const pad = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), lensM); pad.scale.set(0.6, 1.2, 0.6); pad.position.set(X0 + s * 0.16, ey - 0.1, bridgeZ - 0.06); gp.add(pad)
+    }
+    // bridge over the nose, joining the inner top corners of the two rims
+    const rims = gp.children.filter(c => c.type === 'Group')   // [left (s=-1), right (s=1)]
+    const inL = new THREE.Vector3(w, 0.08, 0).applyMatrix4(rims[0].matrix), inR = new THREE.Vector3(-w, 0.08, 0).applyMatrix4(rims[1].matrix)
+    gp.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([inL, new THREE.Vector3(X0, ey + 0.13, zf + 0.03), inR]), 16, 0.024, 6, false), frameM))
     this.glassGroup = gp; this.extras.add(gp)
   }
 

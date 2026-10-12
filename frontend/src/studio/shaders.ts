@@ -170,7 +170,12 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
   col = mix(col, base*vec3(0.62,0.42,0.34), (1.0 - smoothstep(0.1,0.22, length((p - vec2(0.55,3.0))*vec2(1.0,1.5))))*uBirth*front*0.75);
   float fr = step(0.93, hash21(floor(p*85.0))) * exp(-pow(length(vec2(p.x*0.7,(p.y-1.55)*1.2)),2.0)*1.2);
   col = mix(col, base*vec3(0.62,0.45,0.35), fr*uFreckle*front*0.8);
-  col = mix(col, uHair*0.55, hairMask(pos));
+  // soft hairline painted on the scalp so the hair edge fades in like real hair, not a helmet rim
+  if (uStyle > 0.5) {
+    vec3 hq = vec3(pos.x - X0, pos.y, pos.z);
+    float he = hairEdgeY(hq) + (vnoise(hq.xy*38.0 + hq.z*7.0) - 0.5)*0.07;
+    col = mix(col, uHair*0.6, smoothstep(he - 0.2, he + 0.03, hq.y) * 0.92);
+  }
   return col;
 }
 `

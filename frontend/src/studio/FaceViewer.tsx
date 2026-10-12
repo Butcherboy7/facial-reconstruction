@@ -9,8 +9,8 @@ import { TARGET, addStudioLights } from './render'
 export const VIEWS: Record<string, [number, number]> = { Front: [0, 0], 'Left 3/4': [-40, 0], Left: [-90, 0], 'Right 3/4': [40, 0], Right: [90, 0], Back: [180, 0] }
 
 function Lights() {
-  const { scene } = useThree()
-  useEffect(() => { const n = scene.children.length; addStudioLights(scene); const added = scene.children.slice(n); return () => { added.forEach(a => scene.remove(a)) } }, [scene])
+  const { scene, gl } = useThree()
+  useEffect(() => { const n = scene.children.length; addStudioLights(scene, gl); const added = scene.children.slice(n); return () => { added.forEach(a => scene.remove(a)); scene.environment?.dispose(); scene.environment = null } }, [scene, gl])
   return null
 }
 
