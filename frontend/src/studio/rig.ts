@@ -60,7 +60,7 @@ export function lookFromProfile(p: Profile): Look {
     foreheadH: ({ low: -.18, medium: 0, high: .22 } as any)[p.forehead] ?? 0,
     noseW: nose.w + ns * .9 - .12 * female, noseL: nose.l * 2 + ns - .06 * female, noseBridge: p.nose === 'hooked' ? .08 : 0, noseHook: nose.hook, noseUp: nose.up, brow: .09 - .05 * female + (p.eyes === 'deep_set' ? .08 : 0),
     cheek: p.cheeks === 'full' ? .22 : p.cheeks === 'hollow' ? -.2 : 0, bone: (p.cheeks === 'high_cheekbones' || p.face_shape === 'diamond' ? .2 : 0) + .08 * female, lip: (mo[1] - 1) * .05,
-    earS: (({ small: .82, medium: 1, large: 1.22, protruding: 1.15 } as any)[p.ears] ?? 1) * (hs === 'long' ? .8 : 1), earOut: (p.ears === 'protruding' ? .35 : 0) - (hs === 'long' ? .3 : 0), female, age,
+    earS: (({ small: .82, medium: 1, large: 1.22, protruding: 1.15 } as any)[p.ears] ?? 1) * (hs === 'long' ? .6 : 1), earOut: hs === 'long' ? -0.75 : (p.ears === 'protruding' ? .35 : 0), female, age,
     skin: SKIN[skinKey] || SKIN.medium, hair: hairC, iris: EYE[eyeKey] || EYE.brown, lip_c: lipBase,
     eyeSpacing: ({ close: .88, average: 1, wide: 1.14 } as any)[p.eye_spacing] ?? 1, eyeW: ey[0] + .05 * female, eyeH: ey[1] + .12 * female, eyeTilt: ey[2], eyeLid: ey[3],
     browT: br[0] - .5 * female, browArch: br[1] + 0.5 * female, browUp: p.forehead === 'high' ? .05 : 0,
@@ -146,6 +146,7 @@ export class FaceRig {
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + VARY).replace('#include <begin_vertex>', '#include <begin_vertex>\n vObj = position; vObjN = normal; vDet = uv;')
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\n' + VARY + FUNCS + SKIN_FRAG)
         .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = paintFace(vObj, normalize(vObjN), uSkin);')
+        .replace('#include <roughnessmap_fragment>', '#include <roughnessmap_fragment>\n roughnessFactor = skinRough(vObj, roughnessFactor);')
     }
     this.head = new THREE.Mesh(this.geo, skin)
 
@@ -166,8 +167,8 @@ export class FaceRig {
         .replace('#include <color_fragment>', '#include <color_fragment>\n diffuseColor.rgb = hairColor(vObj);')
     }
     this.hair = new THREE.Mesh(this.geo, hairMat)
-    const bunMat = new THREE.MeshStandardMaterial({ color: '#3a2a20', roughness: 0.8 })
-    this.bun = new THREE.Mesh(new THREE.SphereGeometry(0.85, 32, 24), bunMat); this.bun.position.set(X0, 3.75, -1.25); this.bun.visible = false
+    const bunMat = new THREE.MeshStandardMaterial({ color: '#3a2a20', roughness: 0.75, map: strandTexture(4, 2) })
+    this.bun = new THREE.Mesh(new THREE.SphereGeometry(0.8, 40, 28), bunMat); this.bun.position.set(X0, 3.55, -1.45); this.bun.scale.set(1, 0.82, 0.9); this.bun.rotation.x = -0.5; this.bun.visible = false
     this.curtain = makeCurtain()
     this.makeEyes()
     this.root.add(this.head, this.hair, this.bun, this.curtain, this.extras, this.eyes)
@@ -176,7 +177,7 @@ export class FaceRig {
   private makeEyes() {
     this.plugMat = new THREE.MeshStandardMaterial({ color: '#c48f66', roughness: 0.7 })
     for (const s of [-1, 1]) {
-      const m = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 20), this.plugMat)
+      const m = new THREE.Mesh(new THREE.SphereGeometry(0.34, 24, 20), this.head.material as THREE.Material)   // painted like the face
       m.userData.side = s; this.eyes.add(m); this.eyeMeshes.push(m)
     }
   }
@@ -305,7 +306,9 @@ export class FaceRig {
       const headF = sm(-0.9, 0.3, EYE_CY) * (1 - sm(3.7, 4.2, EYE_CY))
       const cx = EYE_CX * (1 + (L.width + J.width) * headF) + (L.eyeSpacing - 1) * 0.5
       this.U.uEyeX.value = cx
-      for (const m of this.eyeMeshes) { m.position.set(X0 + m.userData.side * cx, EYE_CY - 0.04, 1.55); m.scale.set(1, 1, 1) }
+      for (const m of this.eyeMeshes) {   // vertices in head object space so the face paint (eyes) continues across the filler
+        m.geometry.dispose(); m.geometry = new THREE.SphereGeometry(0.34, 24, 20).translate(X0 + m.userData.side * cx, EYE_CY - 0.04, 1.5)
+      }
     }
     this.geo.computeVertexNormals()
     this.geo.computeBoundingSphere()
@@ -332,12 +335,12 @@ export class FaceRig {
     v('uBackEdge', st === 'long' ? 0.6 : st === 'buzz' ? 1.9 : 1.55); v('uSideLong', 0)
     this.curtain.visible = st === 'long'
     { const cm = this.curtain.material as THREE.MeshStandardMaterial; cm.color.set(L.hair).lerp(new THREE.Color('#a8a8aa'), 0.7 * L.grey).multiplyScalar(1.5); cm.emissive.set(L.hair).lerp(new THREE.Color('#a8a8aa'), 0.7 * L.grey).multiplyScalar(0.28) }
-    this.curtain.scale.set(1 + L.width * 0.9, 1, 1)
+    this.curtain.scale.set(1 + Math.max(0, L.width) * 0.9, 1, 1)
     v('uThick', ({ buzz: 0.035, short: 0.15, receding: 0.15, swept: 0.19, curly: 0.2, long: 0.2, bun: 0.15 } as any)[st] ?? 0.15)
     v('uFrontVol', st === 'swept' ? 0.3 : st === 'curly' ? 0.15 : 0); v('uCurl', st === 'curly' ? 1 : 0)
     this.hair.visible = !none
     this.bun.visible = st === 'bun'
-    ;(this.bun.material as THREE.MeshStandardMaterial).color.set(L.hair)
+    ;(this.bun.material as THREE.MeshStandardMaterial).color.set(L.hair).lerp(new THREE.Color('#a8a8aa'), 0.7 * L.grey).multiplyScalar(1.4)
     this.buildGlasses(L.glasses)
   }
 
@@ -390,22 +393,34 @@ export class FaceRig {
   dispose() { this.geo.dispose() }
 }
 
+/** fine light/dark strand streaks (greyscale, tinted by the material colour) */
+function strandTexture(rx: number, ry: number) {
+  const c = document.createElement('canvas'); c.width = 512; c.height = 128
+  const x = c.getContext('2d')!; x.fillStyle = '#bdbdbd'; x.fillRect(0, 0, 512, 128)
+  for (let i = 0; i < 1600; i++) {
+    const v = 120 + Math.random() * 135; x.strokeStyle = `rgba(${v},${v},${v},${0.25 + Math.random() * 0.35})`; x.lineWidth = 0.6 + Math.random()
+    x.beginPath(); const px = Math.random() * 512; x.moveTo(px, -4); x.bezierCurveTo(px + (Math.random() - 0.5) * 10, 40, px + (Math.random() - 0.5) * 10, 90, px + (Math.random() - 0.5) * 8, 132); x.stroke()
+  }
+  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(rx, ry); t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+
 /** long hair: a smooth curtain from the crown, behind the ears, down to the shoulders */
 function makeCurtain() {
-  const curve = new THREE.CatmullRomCurve3([[2.0, 2.95], [2.3, 2.5], [2.46, 1.7], [2.46, 0.7], [2.34, -0.3], [2.1, -1.1], [1.82, -1.55]].map(([r, y]) => new THREE.Vector3(r, y, 0)))
+  const curve = new THREE.CatmullRomCurve3([[1.3, 3.55], [1.95, 3.1], [2.42, 2.55], [2.82, 1.8], [2.8, 0.9], [2.5, -0.2], [2.16, -1.1], [1.86, -1.55]].map(([r, y]) => new THREE.Vector3(r, y, 0)))
   const prof = curve.getPoints(40).map(p => new THREE.Vector2(p.x, p.y))
-  const g = new THREE.LatheGeometry(prof, 72, Math.PI * 0.42, Math.PI * 1.16)
+  const g = new THREE.LatheGeometry(prof, 80, Math.PI * 0.24, Math.PI * 1.52)   // front edges frame the face and cover the ears
   const pos = g.attributes.position as THREE.BufferAttribute
   for (let i = 0; i < pos.count; i++) {   // taper the strands toward the nape and curl the bottom edge slightly inward
     const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i)
     const low = THREE.MathUtils.smoothstep(-y, 0.2, 1.6)
-    pos.setXYZ(i, x * (1 - 0.1 * low), y, z * (1 - 0.18 * low) - 0.05 * low)
+    // the front edges tuck in against the temples and cheeks, so no gap shows the ears from the front
+    const edge = 1 - THREE.MathUtils.smoothstep(Math.abs(Math.atan2(x, z)), Math.PI * 0.24, Math.PI * 0.24 + 0.5)
+    const tuck = 1 - 0.24 * edge * THREE.MathUtils.smoothstep(y, -0.6, 0.6) * (1 - THREE.MathUtils.smoothstep(y, 2.4, 3.1))
+    pos.setXYZ(i, x * tuck * (1 - 0.1 * low), y, z * tuck * (1 - 0.18 * low) - 0.05 * low)
   }
   g.computeVertexNormals()
-  const c = document.createElement('canvas'); c.width = 256; c.height = 64
-  const x = c.getContext('2d')!; x.fillStyle = '#c8c8c8'; x.fillRect(0, 0, 256, 64)
-  for (let i = 0; i < 700; i++) { const v = 150 + Math.random() * 105; x.strokeStyle = `rgba(${v},${v},${v},0.5)`; x.beginPath(); const px = Math.random() * 256; x.moveTo(px, 0); x.lineTo(px + (Math.random() - 0.5) * 6, 64); x.stroke() }
-  const t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(3, 1); t.colorSpace = THREE.SRGBColorSpace
+  const t = strandTexture(3, 1)
   const m = new THREE.Mesh(g, new THREE.MeshStandardMaterial({ color: '#3a2a20', map: t, roughness: 0.75, side: THREE.DoubleSide, emissive: '#000000' }))
   m.position.set(X0, 0, -0.15); m.visible = false
   return m

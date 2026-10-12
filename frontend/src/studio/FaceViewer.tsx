@@ -26,7 +26,8 @@ function Controls({ view, auto }: { view: string; auto: boolean }) {
   const { camera } = useThree()
   useEffect(() => {
     const qv = new URLSearchParams(location.search).get('v')
-    const [az] = VIEWS[qv && VIEWS[qv] ? qv : view] || [0, 0], r = 15.5, a = (az * Math.PI) / 180
+    const [az] = VIEWS[qv && VIEWS[qv] ? qv : view] || [0, 0], a = (az * Math.PI) / 180
+    const r = Number(new URLSearchParams(location.search).get('zr')) || 15.5   // dev: ?zr=8 for a close-up
     camera.position.set(TARGET.x + Math.sin(a) * r, 1.55, TARGET.z + Math.cos(a) * r - 0)
     camera.lookAt(TARGET); ref.current?.update()
   }, [view, camera])
