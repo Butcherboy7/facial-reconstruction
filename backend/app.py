@@ -1,5 +1,5 @@
 """FastAPI backend. Run: uvicorn app:app --port 8000"""
-import json, time, uuid, pathlib, datetime, base64
+import re, json, time, uuid, pathlib, datetime, base64
 import cv2
 import numpy as np
 from fastapi import FastAPI, HTTPException
@@ -51,7 +51,7 @@ def index_refs():
         if f.stem in have: continue
         e = matching.embed(cv2.imread(str(f)))
         if e is not None:
-            db.ins("INSERT INTO refs(id,path,embedding,note) VALUES(?,?,?,?)", (f.stem, f"refs/{f.name}", e.tobytes(), "synthetic demo reference"))
+            db.ins("INSERT INTO refs(id,path,embedding,note) VALUES(?,?,?,?)", (f.stem, f"refs/{f.name}", e.tobytes(), "synthetic reference face"))
 index_refs()
 
 
@@ -62,7 +62,7 @@ def schema(): return {"steps": STEPS, "required": REQUIRED}
 
 @app.get("/api/status")
 def status():
-    return {"generation": "studio", "matching": "real" if matching.AVAILABLE else "demo",
+    return {"generation": "studio", "matching": "real" if matching.AVAILABLE else "unavailable",
             "matching_model": "SFace (OpenCV) + YuNet detector", "references": db.q("SELECT COUNT(*) n FROM refs", one=True)["n"],
             "three_d": "studio", "photoreal": photoreal.enabled()}
 
@@ -178,6 +178,23 @@ def preview_photo(b: PreviewIn):
     return {"image": "data:image/jpeg;base64," + base64.b64encode(buf.tobytes()).decode()}
 
 
+class EnrollIn(BaseModel):
+    id: str; image: str; note: str = "synthetic reference face"
+
+
+@app.post("/api/enroll-reference")
+def enroll_reference(b: EnrollIn):
+    """add a face to the reference set (embedded with the same model used for searching)"""
+    if not re.fullmatch(r"[A-Za-z0-9_-]{3,32}", b.id): raise HTTPException(422, "bad id")
+    im = decode_img(b.image)
+    e = matching.embed(im) if matching.AVAILABLE else None
+    if e is None: raise HTTPException(422, "No face detected")
+    cv2.imwrite(str(DATA / "refs" / f"{b.id}.jpg"), im, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    db.q("DELETE FROM refs WHERE id=?", (b.id,))
+    db.ins("INSERT INTO refs(id,path,embedding,note) VALUES(?,?,?,?)", (b.id, f"refs/{b.id}.jpg", e.tobytes(), b.note))
+    return {"ok": True}
+
+
 @app.post("/api/upload-asset")
 def upload_asset(b: AssetIn):
     get_case(b.case_id)
@@ -271,8 +288,8 @@ def generate_3d(b: CaseOnly):
           "eye_r": [float(f[4] / w), float(f[5] / h)], "eye_l": [float(f[6] / w), float(f[7] / h)],
           "nose": [float(f[8] / w), float(f[9] / h)], "mouth_r": [float(f[10] / w), float(f[11] / h)], "mouth_l": [float(f[12] / w), float(f[13] / h)],
           "aspect": w / h}
-    return add_asset(b.case_id, "model3d", "3D head (demo parametric)", c["final_image"],
-                     {"mode": "DEMO", "method": "parametric head mesh aligned to detected landmarks, photo projected as texture", "landmarks": lm,
+    return add_asset(b.case_id, "model3d", "3D head (parametric)", c["final_image"],
+                     {"mode": "STUDIO", "method": "parametric head mesh aligned to detected landmarks, photo projected as texture", "landmarks": lm,
                       "note": "REAL mode would use a pretrained monocular reconstruction model (e.g. DECA). Monocular 3D cannot recover geometry never visible in the input image."})
 
 

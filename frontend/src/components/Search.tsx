@@ -79,7 +79,7 @@ export default function Search({ ctx }: { ctx: Ctx }) {
         <div className="flex-1 min-w-[240px]">
           <div className="label">Search image</div>
           <div className="text-[14px] text-graphite mt-1">Final reconstruction → face detection → alignment → embedding → cosine similarity against <b>{refs.length || 18} synthetic reference faces</b>.</div>
-          <div className="flex gap-2 mt-2"><Badge tone="ok">SFace embeddings · REAL MODEL</Badge><Badge tone="warn">REFERENCE / DEMO DATA ONLY</Badge></div>
+          <div className="flex gap-2 mt-2"><Badge tone="ok">SFace embeddings · REAL MODEL</Badge><Badge tone="warn">SYNTHETIC REFERENCE SET</Badge></div>
         </div>
         <button className="btn btn-primary h-12 px-6" onClick={run}><Scan size={17} /> {s ? 'Re-run search' : 'SEARCH REFERENCE DATABASE'}</button>
       </div>
@@ -123,7 +123,7 @@ export default function Search({ ctx }: { ctx: Ctx }) {
                 <Bar v={sel.similarity} />
                 <div className="text-[10.5px] text-mute mt-1.5">Tick mark = {THRESH} (model's published same-identity reference threshold; shown for scale only).</div>
               </>}
-              <div className="mt-4 rounded-lg bg-warn-l text-warn text-[12px] p-3 leading-relaxed"><b>Similarity score represents model output and does not establish identity.</b> Results are potential reference matches against synthetic demo faces — not identifications.</div>
+              <div className="mt-4 rounded-lg bg-warn-l text-warn text-[12px] p-3 leading-relaxed"><b>Similarity score represents model output and does not establish identity.</b> Results are potential reference matches against synthetic reference faces — not identifications.</div>
             </aside>
           </div>
           <div className="mt-6"><button className="btn btn-primary" onClick={() => ctx.go('report')}>Continue to case report <ArrowRight /></button></div>

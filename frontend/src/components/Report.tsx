@@ -54,7 +54,7 @@ export default function Report({ ctx }: { ctx: Ctx }) {
 
         <H>Reference database search</H>
         {s ? <>
-          <p className="text-[12.5px] text-graphite mb-3">Database: 18 synthetic reference faces (demo data; no real records). Model: SFace embeddings with YuNet detection, cosine similarity. Query: <span className="font-mono">{s.query_path}</span></p>
+          <p className="text-[12.5px] text-graphite mb-3">Database: synthetic reference faces (generated faces; no real people or records). Model: SFace embeddings with YuNet detection, cosine similarity. Query: <span className="font-mono">{s.query_path}</span></p>
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">{s.results.slice(0, 5).map((r: any) => <div key={r.id}><img src={r.url} className="w-full aspect-square object-cover rounded" /><div className="text-[11px] mt-1"><span className="font-mono">#{r.rank} {r.id}</span></div><div className="text-[12px] font-semibold tabular-nums">{r.similarity.toFixed(3)}</div></div>)}</div>
           <p className="text-[11.5px] text-mute mt-2">Potential reference matches only. Similarity score represents model output and does not establish identity.</p>
         </> : <p className="text-[12.5px] text-mute">No search run.</p>}

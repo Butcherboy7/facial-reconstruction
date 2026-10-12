@@ -48,7 +48,7 @@ found, try `py` (Windows) or `python3`.
 | Pencil sketch | OpenCV dodge-blend + edge pass over the render |
 | Age / variations | Re-rendered from the same 3D model with age or a changed trait |
 | Face validation + embedding | OpenCV YuNet detector + SFace embeddings (CPU), cosine similarity |
-| Reference DB | 18 synthetic faces. No real people or records |
+| Reference set | 26 synthetic faces (18 portrait-style + 8 enrolled people from the same 3D studio). No real people or records |
 
 The faces are stylised approximations, never photographs and never an identification.
 
