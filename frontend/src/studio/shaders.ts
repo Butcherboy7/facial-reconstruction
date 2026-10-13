@@ -9,7 +9,7 @@ float vnoise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
 const float X0 = -0.07;
 const float EYE_Y = 1.79;
 const float BROW_Y = 2.34;
-const float MOUTH_Y = 0.44;
+#define MOUTH_Y uMouthY   // the lip parting, measured on the reshaped mesh (rig.ts)
 uniform float uHairline; uniform float uRecede; uniform float uBackEdge; uniform float uSideLong; uniform float uStyle;
 float hairEdgeY(vec3 q){
   float ax = abs(q.x);
@@ -23,8 +23,8 @@ float hairEdgeY(vec3 q){
 float hairMask(vec3 pos){
   if (uStyle < 0.5) return 0.0;
   vec3 q = vec3(pos.x - X0, pos.y, pos.z);
-  float n = vnoise(q.xy*14.0 + q.z*5.0);
-  float e = hairEdgeY(q) + (n-0.5)*0.02;
+  // same irregular edge as the hairline painted on the skin (paintFace), so the shell ends where the painted hair is densest
+  float e = hairEdgeY(q) + (vnoise(q.xy*9.0 + q.z*3.0) - 0.5)*0.08 + (vnoise(q.xy*31.0) - 0.5)*0.035;
   return step(e, q.y);
 }
 float hairMaskSoft(vec3 pos){
@@ -38,7 +38,7 @@ export const SKIN_FRAG = /* glsl */ `
 uniform vec3 uSkin; uniform vec3 uHair; uniform vec3 uIris; uniform vec3 uLip; uniform sampler2D uDetail;
 uniform float uEyeX, uEyeSpacing, uEyeW, uEyeH, uEyeTilt, uEyeLid;
 uniform float uBrowT, uBrowArch, uBrowUp;
-uniform float uMouthW, uLipUp, uLipLo;
+uniform float uMouthW, uLipUp, uLipLo, uMouthY, uMouthS;   // uMouthY / uMouthS: lip parting height and mouth half-width, measured on the reshaped mesh
 uniform float uBeard, uMust, uSide, uGoatee;
 uniform float uAge, uGrey, uFemale;
 uniform float uScarL, uScarR, uMole, uBirth, uFreckle, uWrinkleMark, uScarBrow;
@@ -66,7 +66,14 @@ float strokes(vec2 q, float sc, vec2 dir, float len, float wid, float dens, floa
 float skinRough(vec3 pos, float r){           // T-zone (forehead, nose) is shinier than the cheeks
   vec2 p = vec2(pos.x - X0, pos.y);
   float tz = exp(-pow(length(vec2(p.x*0.9, (p.y-2.9)*0.8)), 2.0)*1.5) + exp(-pow(length(vec2(p.x*2.2, p.y-1.3)), 2.0)*2.5);
-  return r * (1.0 - 0.28*clamp(tz, 0.0, 1.0)) * (0.95 + 0.1*vnoise(p*40.0));
+  float rr = r * (1.0 - 0.28*clamp(tz, 0.0, 1.0)) * (0.95 + 0.1*vnoise(p*40.0));
+  // hair is matte: no skin sheen on brows, beard or moustache (a shiny black beard reads grey)
+  float ax = abs(p.x);
+  float brow = (1.0 - smoothstep(0.08, 0.16, abs(p.y - (BROW_Y + uBrowUp)))) * smoothstep(0.15, 0.3, ax) * (1.0 - smoothstep(1.25, 1.45, ax));
+  float lips = (1.0 - smoothstep(0.12, 0.2, abs(p.y - uMouthY))) * (1.0 - smoothstep(uMouthS*0.9, uMouthS*1.05, ax));
+  float beard = uBeard * smoothstep(1.3, 0.9, p.y) * smoothstep(-1.0, -0.6, p.y) * (1.0 - smoothstep(1.7, 1.95, ax)) * (1.0 - lips);
+  float must = uMust * smoothstep(uMouthY + 0.08, uMouthY + 0.14, p.y) * (1.0 - smoothstep(uMouthY + 0.32, uMouthY + 0.4, p.y)) * (1.0 - smoothstep(uMouthS, uMouthS*1.35, ax));
+  return mix(rr, 1.0, clamp(max(brow, max(beard, must)), 0.0, 1.0));
 }
 
 vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
@@ -97,7 +104,7 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
     float hw = 0.34*uEyeW, hh = 0.14*uEyeH;
     float ax = clamp(d.x/hw, -1.0, 1.0);
     float prof = pow(max(1.0-ax*ax,0.0), 0.8);
-    float up = hh*prof*(1.0-0.25*uEyeLid), lo = hh*prof*0.7;
+    float up = hh*prof*(1.0-0.25*uEyeLid), lo = hh*prof*0.95;   // lower edge sits on the scan's real lower lid (y ~1.62), no bare strip under the eye
     float yn = d.y>0.0 ? d.y/max(up,1e-4) : -d.y/max(lo,1e-4);
     float inside = 1.0 - smoothstep(0.9, 1.0, max(yn, abs(d.x)/hw));
     socket = max(socket, exp(-pow(length(vec2(d.x/(hw*2.2), d.y/(hh*5.0))),2.0)*1.2));
@@ -107,7 +114,9 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
       float ir = hh*1.3; float rr = length(d - vec2(0.0, 0.02));   // iris tucked under the upper lid
       float irisM = 1.0 - smoothstep(ir*0.9, ir, rr);
       float ang = atan(d.y, d.x);
-      vec3 ic = uIris * (0.7 + 0.5*vnoise(vec2(ang*3.0, rr*30.0)));
+      vec2 rdir = vec2(cos(ang), sin(ang));                                              // seamless round the iris
+      vec3 ic = uIris * (0.72 + 0.5*vnoise(rdir*16.0 + rr*4.0) + 0.15*vnoise(rdir*40.0));        // fine radial fibres
+      ic *= 1.0 + 0.22*exp(-pow((rr/ir - 0.52)/0.09, 2.0));                                          // lighter collarette ring round the pupil
       ic = mix(ic, ic*0.45, smoothstep(ir*0.62, ir, rr)); ic *= 1.0 - 0.35*smoothstep(0.1,0.9,yn)*step(0.0,d.y);
       float pup = 1.0 - smoothstep(ir*0.36, ir*0.42, rr);
       vec3 e = mix(scl, ic, irisM); e = mix(e, vec3(0.02), pup*irisM);
@@ -138,14 +147,15 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
   col = mix(col, eyeCol, eyeA*front);
 
   // ---- eyebrows: individual hairs (inner ones grow upward, the rest sweep outward), skin showing through ----
-  float browA = 0.0, browBase = 0.0;
+  float browA = 0.0, browBase = 0.0, browFill = 0.0;
   for (int k=0;k<2;k++){
     float s = k==0 ? -1.0 : 1.0;
     float sp = uEyeX/0.615; float inner = 0.26*sp, outer = 1.3*sp;
     float t = (abs(p.x) - inner) / (outer - inner);
     if (p.x*s > 0.0 && t > -0.08 && t < 1.08){
-      float yc = BROW_Y + uBrowUp + uBrowArch*0.05*sin(t*3.1416*0.9) - 0.08*t*t;
-      float th = max(0.05 + 0.03*uBrowT, 0.043) * (1.0 - 0.5*t*t) * (0.55+0.45*smoothstep(-0.05,0.2,t));
+      // every brow has a slight arch (peaking about two-thirds out) and a tail that dips and thins
+      float yc = BROW_Y + uBrowUp + (0.025 + uBrowArch*0.05)*sin(t*3.1416*0.9) - 0.11*t*t;
+      float th = max(0.05 + 0.03*uBrowT, 0.043) * (1.0 - 0.6*t*t) * (0.7+0.3*smoothstep(-0.05,0.15,t));
       float v = (p.y - yc) / th;
       float env = (1.0 - smoothstep(0.55, 1.15, abs(v + 0.1*vnoise(p*30.0)))) * smoothstep(-0.08, 0.06, t) * (1.0 - smoothstep(0.92, 1.08, t));
       if (env > 0.0){
@@ -156,31 +166,38 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
         hairs = max(hairs, strokes(p, 30.0, dir, 1.5, 0.12, dn*0.8, 13.0));
         browA = max(browA, hairs * env);
         browBase = max(browBase, env);
+        browFill = max(browFill, env * smoothstep(-0.05, 0.25, t) * (1.0 - 0.6*smoothstep(0.55, 1.0, t)) * (1.0 - 0.45*abs(v)));   // soft head, dense body, thinning tail
       }
     }
   }
-  vec3 bc = mix(uHair, vec3(0.08,0.06,0.05), 0.4);                         // brows read a shade darker than scalp hair
+  vec3 bc = mix(uHair, vec3(0.08,0.06,0.05), 0.5);                        // brows read a shade darker than scalp hair
   col = mix(col, col*mix(vec3(1.0), bc*2.2, 0.45), browBase*0.6*front);   // faint tint where the brow grows
   col = mix(col, bc*(0.75+0.5*vnoise(p*90.0)), clamp(browA,0.,1.)*front*0.95);
+  // from a normal viewing distance single hairs are smaller than a pixel: fill in their combined density so brows don't fade to a pale bar
+  float far = smoothstep(0.004, 0.016, fwidth(p.x));
+  col = mix(col, bc*0.85, browFill*far*front*(0.62 + 0.12*uBrowT));
 
   // ---- lips: cupid's bow, soft vermilion border, darker towards the mouth line, highlight on the lower lip ----
-  float hw = 0.5*uMouthW; float my = p.y - MOUTH_Y;
+  float hw = uMouthS; float my = p.y - MOUTH_Y;   // half-width measured from the mesh
   float u = p.x / hw, au = abs(u);
   float body = sqrt(max(1.0 - au*au, 0.0));
   float bow = 1.0 - 0.28*exp(-pow(u/0.13, 2.0)) + 0.08*exp(-pow((au-0.28)/0.12, 2.0));   // dip in the middle, peaks either side
   float ml = -0.006*u*u;                                                                    // mouth line, corners slightly lower
-  float uh = 0.075*uLipUp*bow*pow(body, 0.7), lh = 0.09*uLipLo*pow(body, 0.55);
-  float yUp = my - ml, inUp = (1.0 - smoothstep(uh - 0.012, uh + 0.008, yUp)) * step(0.0, yUp);
-  float inLo = (1.0 - smoothstep(lh - 0.014, lh + 0.01, -yUp)) * step(yUp, 0.0);
-  float lipM = clamp(inUp + inLo, 0.0, 1.0) * (1.0 - smoothstep(0.9, 1.02, au)) * front;
-  vec3 lipC = mix(col, uLip, 0.8);
-  lipC *= 1.0 - 0.28*exp(-pow(yUp/0.03, 2.0));                                              // darker near the parting
+  // heights match the scan's vermilion (about 0.17 each at the centre), tapering to nothing at the corners
+  float uh = 0.16*(1.0 + 0.45*(uLipUp - 1.0))*bow*pow(body, 0.9), lh = 0.17*(1.0 + 0.45*(uLipLo - 1.2))*pow(body, 0.75);
+  float yUp = my - ml, inUp = (1.0 - smoothstep(uh - 0.025, uh + 0.008, yUp)) * step(0.0, yUp);
+  float inLo = (1.0 - smoothstep(lh - 0.04, lh + 0.01, -yUp)) * step(yUp, 0.0);
+  float lipM = clamp(inUp + inLo, 0.0, 1.0) * (1.0 - smoothstep(0.88, 1.0, au)) * front;
+  vec3 lipC = mix(col, uLip, 0.6 + 0.18*uFemale);
+  lipC *= 1.0 - 0.25*exp(-pow(yUp/0.04, 2.0));                                              // darker near the parting
+  lipC *= 1.0 - 0.1*smoothstep(0.0, 0.6, yUp/max(uh, 1e-3)) * step(0.0, yUp);               // the upper lip faces down, so it reads darker
   lipC += vec3(0.07,0.05,0.05) * exp(-pow((yUp + lh*0.45)/(lh*0.28+0.001), 2.0)) * exp(-pow(u/0.45, 2.0)) * step(yUp, 0.0); // lower-lip sheen
   lipC *= 0.92 + 0.08*vnoise(vec2(p.x*120.0, p.y*18.0));                                     // fine vertical lip lines
   col = mix(col, lipC, lipM);
   col *= 1.0 - 0.12*exp(-pow((yUp - uh - 0.012)/0.012, 2.0)) * (1.0 - smoothstep(0.8,1.0,au)) * front;    // vermilion border
   col *= 1.0 - 0.55*exp(-pow(yUp/0.009, 2.0)) * (1.0 - smoothstep(0.92, 1.08, au)) * front;            // mouth line
   col *= 1.0 - 0.3*exp(-pow(length(vec2((au-1.0)*hw, yUp))/0.03, 2.0)) * front;                     // corners
+  col *= 1.0 - 0.6*smoothstep(0.3, 0.7, nrm.y)*exp(-pow(yUp/0.035, 2.0))*(1.0 - smoothstep(0.9, 1.05, au)); // inner lip surface in the parting stays in shadow
   col *= 1.0 - 0.12*exp(-pow((yUp + lh + 0.06)/0.05, 2.0)) * (1.0 - smoothstep(0.5, 1.1, au)) * front; // shadow under lower lip
 
   // ---- facial hair ----
@@ -193,10 +210,10 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
   float jaw = (1.0 - smoothstep(xl - 0.3, xl, bax)) * smoothstep(-0.95, -0.55, p.y) * below * bfront;
   // hair coordinates wrapped round the head (arc length), so strands don't smear into streaks on the jaw sides or under the chin
   vec2 bq = vec2(atan(p.x, pos.z + 0.4)*2.4, p.y - pos.z*0.7*smoothstep(0.3, 0.8, -nrm.y));
-  float lipHole = 1.0 - smoothstep(0.0, 0.05, 0.0) ;
-  float hole = (1.0 - smoothstep(0.85, 1.05, abs(p.x)/hw)) * (1.0 - smoothstep(0.0, 0.35, abs(my+0.02)/0.22));
-  jaw *= 1.0 - hole*0.95;
-  float gjaw = (1.0 - smoothstep(0.5,0.9,abs(p.x))) * (1.0 - smoothstep(MOUTH_Y-0.15, MOUTH_Y-0.5, p.y)*0.0) * step(p.y, MOUTH_Y-0.12) * smoothstep(-0.8,-0.4,p.y);
+  // no hair on the lips themselves, except that a beard's moustache hangs a little over the top of the upper lip
+  float hole = clamp(inUp * smoothstep(uh*1.05, uh*0.65, yUp) + inLo, 0.0, 1.0) * (1.0 - smoothstep(0.92, 1.06, au));
+  jaw *= 1.0 - hole;
+  float gjaw = (1.0 - smoothstep(0.5,0.9,abs(p.x))) * step(p.y, MOUTH_Y-0.18) * smoothstep(-0.8,-0.4,p.y);
   float bm = mix(jaw, gjaw*(1.0-hole), uGoatee);
   float dens = uBeard;                                                    // 0..1 (stubble .38, short .72, full 1)
   vec3 hc = uHair*0.78;
@@ -215,15 +232,15 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
     bh = max(bh, strokes(bq, 55.0, bdir, 2.6, 0.15, 0.9, 17.0));
     float fill = smoothstep(0.7, 1.0, dens);
     col = mix(col, hc*0.75, bCore*longH*(0.3 + 0.3*fill));
-    col = mix(col, mix(hc*0.45, hc*1.6 + 0.05, hash21(floor(bq*80.0))), bh*bmF*longH*0.9);
+    col = mix(col, mix(hc*0.45, hc*1.6 + 0.05, vnoise(bq*55.0)), bh*bmF*longH*0.9);
   }
   // moustache: strands fanning down and outward from the philtrum
-  float mu = (1.0 - smoothstep(0.42*uMouthW,0.68*uMouthW, abs(p.x))) * smoothstep(MOUTH_Y+0.05, MOUTH_Y+0.11, p.y) * (1.0 - smoothstep(MOUTH_Y+0.26, MOUTH_Y+0.36, p.y)) * front;
+  float mu = (1.0 - smoothstep(0.85*hw, 1.35*hw, abs(p.x))) * smoothstep(MOUTH_Y+0.1, MOUTH_Y+0.16, p.y) * (1.0 - smoothstep(MOUTH_Y+0.3, MOUTH_Y+0.38, p.y)) * front;   // from the lip border up to the nose
   if (uMust > 0.0 && mu > 0.0){
     vec2 mdir = vec2(sign(p.x)*0.55, -1.0);
     float ms = max(strokes(p, 75.0, mdir, 2.2, 0.15, 0.95, 21.0), strokes(p, 100.0, mdir, 2.0, 0.13, 0.95, 23.0));
     col = mix(col, hc*0.7, mu*uMust*0.6);
-    col = mix(col, hc*(0.6+0.6*hash21(floor(p*90.0))), ms*mu*uMust*0.9);
+    col = mix(col, hc*(0.6+0.6*vnoise(p*65.0)), ms*mu*uMust*0.9);
   }
   // sideburns
   float sb = (1.0 - smoothstep(0.0,0.25, abs(abs(p.x)-1.9) - 0.2)) * step(1.0,p.y) * (1.0 - smoothstep(1.6 + uSide*0.8, 2.0 + uSide*0.8, p.y)) * step(0.01, uSide) * bfront;
@@ -260,7 +277,7 @@ vec3 paintFace(vec3 pos, vec3 nrm, vec3 base){
     vec3 hq = vec3(pos.x - X0, pos.y, pos.z);
     float he = hairEdgeY(hq) + (vnoise(hq.xy*9.0 + hq.z*3.0) - 0.5)*0.08 + (vnoise(hq.xy*31.0) - 0.5)*0.035;
     float band = smoothstep(he - 0.22, he + 0.04, hq.y);
-    col = mix(col, uHair*0.62, band * 0.55);                                                  // scalp shows hair colour under the edge
+    col = mix(col, uHair*0.62, band*band * 0.8);                                              // scalp shows hair colour under the edge, densest where the hair begins
     float wisps = band <= 0.0 || band >= 1.0 ? 0.0 : max(strokes(p, 90.0, vec2(0.15*sign(p.x), 1.0), 2.4, 0.13, 0.9, 51.0), strokes(p, 130.0, vec2(-0.1*sign(p.x), 1.0), 2.2, 0.12, 0.9, 53.0));
     col = mix(col, uHair*0.8, wisps * smoothstep(he - 0.18, he + 0.02, hq.y) * 0.85);         // fine baby hairs along the hairline
     col = mix(col, uHair*0.62, smoothstep(he + 0.0, he + 0.08, hq.y));

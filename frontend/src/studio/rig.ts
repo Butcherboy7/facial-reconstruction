@@ -4,6 +4,7 @@ import { FUNCS, VARY, SKIN_FRAG, HAIR_FRAG } from './shaders'
 
 export const X0 = -0.07
 export const EYE_CX = 0.615, EYE_CY = 1.74
+const MOUTH_Y0 = 0.555   // lip parting on the scan's midline
 export type Profile = Record<string, any>
 
 // ---------- witness profile -> rig parameters ----------
@@ -124,6 +125,7 @@ export class FaceRig {
   private glassGroup: THREE.Group | null = null
   private bun: THREE.Mesh
   private curtain: THREE.Mesh
+  private mouthRim: number[] = []   // vertices on the rim of the lip opening
 
   constructor(src: THREE.BufferGeometry) {
     this.geo = src.clone()
@@ -131,7 +133,7 @@ export class FaceRig {
     this.base = new Float32Array((this.geo.attributes.position as THREE.BufferAttribute).array as Float32Array)
     const num = (v: number) => ({ value: v })
     const names = ['uEyeX', 'uHairline', 'uRecede', 'uBackEdge', 'uSideLong', 'uStyle', 'uEyeSpacing', 'uEyeW', 'uEyeH', 'uEyeTilt', 'uEyeLid', 'uBrowT', 'uBrowArch', 'uBrowUp',
-      'uMouthW', 'uLipUp', 'uLipLo', 'uBeard', 'uMust', 'uSide', 'uGoatee', 'uAge', 'uGrey', 'uFemale', 'uScarL', 'uScarR', 'uMole', 'uBirth', 'uFreckle', 'uWrinkleMark', 'uScarBrow', 'uThick', 'uFrontVol', 'uCurl']
+      'uMouthW', 'uLipUp', 'uLipLo', 'uMouthY', 'uMouthS','uBeard', 'uMust', 'uSide', 'uGoatee', 'uAge', 'uGrey', 'uFemale', 'uScarL', 'uScarR', 'uMole', 'uBirth', 'uFreckle', 'uWrinkleMark', 'uScarBrow', 'uThick', 'uFrontVol', 'uCurl']
     names.forEach(n => (this.U[n] = num(0)))
     this.U.uWrinkleMark.value = 1
     this.U.uSkin = { value: new THREE.Color('#c48f66') }; this.U.uHair = { value: new THREE.Color('#3a2a20') }
@@ -194,6 +196,8 @@ export class FaceRig {
       const x = pos.getX(i) - X0, y = pos.getY(i), z = pos.getZ(i)
       if (z < 0.2) continue
       w[i] = sm(-0.5, -0.75, y) * (1 - sm(-1.5, -1.9, y)) * (1 - sm(1.5, 2.2, Math.abs(x)))
+      // the scan's hard step under each lower lid (y ~1.61) reads as a cut line: soften it into a gentle lid fold
+      if (z > 1.5) w[i] = Math.max(w[i], 0.7 * g2(Math.abs(x) - EYE_CX, 0.42, y - 1.6, 0.07))
     }
     // Taubin smoothing (shrink / inflate pairs) so the neck keeps its volume
     const step = (k: number) => {
@@ -221,6 +225,8 @@ export class FaceRig {
     const next = new Map<number, number>()
     for (const [key, c] of cnt) if (c === 1) { const [a, b] = dir.get(key)!; const x = (pos.getX(a) + pos.getX(b)) / 2 - X0, y = (pos.getY(a) + pos.getY(b)) / 2, z = (pos.getZ(a) + pos.getZ(b)) / 2
       if (Math.abs(x) < 0.6 && y > 0.1 && y < 0.6 && z > 1.7) next.set(b, a) }
+    // rim of the lip opening (the other boundary at y ~0.16 is inside the mouth): measured again after every reshape
+    this.mouthRim = [...new Set([...next.keys(), ...next.values()])].filter(i => pos.getY(i) > 0.4)
     if (next.size < 8) return
     const start = next.keys().next().value as number
     const loop: number[] = []; let cur = start
@@ -262,8 +268,9 @@ export class FaceRig {
       qx *= 1 + (L.width + J.width) * head
       const wj = Math.exp(-(((y - 0.2) / 0.85) ** 2)) * (z > -1.2 ? 1 : 0.4)
       qx *= 1 + (L.jaw + J.jaw) * 0.3 * wj
-      qx *= 1 - 0.07 * Math.exp(-(((y + 0.05) / 0.75) ** 2)) * (z > 0 ? 1 : 0.5)   // the scan's heavy lower cheeks, slimmed
+      qx *= 1 - (0.07 + 0.07 * L.female) * Math.exp(-(((y + 0.05) / 0.75) ** 2)) * (z > 0 ? 1 : 0.5)   // the scan's heavy lower cheeks, slimmed (more for women)
       qx *= 1 - L.chinPoint * Math.exp(-(((y + 0.35) / 0.5) ** 2))
+      qx *= 1 + (L.mouthW - 1) * g2(qx, 0.9, y - MOUTH_Y0, 0.22) * sm(1.5, 2.1, z)   // the real mouth gets wider/narrower, not just its paint
       // face length: lower face drops, bust follows
       y -= (L.length + J.length) * 4.5 * sm(1.3, -0.4, y)
       const ax = Math.abs(qx)
@@ -306,6 +313,15 @@ export class FaceRig {
       const headF = sm(-0.9, 0.3, EYE_CY) * (1 - sm(3.7, 4.2, EYE_CY))
       const cx = EYE_CX * (1 + (L.width + J.width) * headF) + (L.eyeSpacing - 1) * 0.5
       this.U.uEyeX.value = cx
+      // lip paint follows the reshaped mouth: parting height = halfway between the rim's top and bottom at the centre line, half-width = its corners
+      let mx0 = Infinity, mx1 = -Infinity, y0 = Infinity, y1 = -Infinity
+      for (const i of this.mouthRim) {
+        const x = a[i * 3]; mx0 = Math.min(mx0, x); mx1 = Math.max(mx1, x)
+        if (Math.abs(x - X0) < 0.1) { y0 = Math.min(y0, a[i * 3 + 1]); y1 = Math.max(y1, a[i * 3 + 1]) }
+      }
+      const ok = this.mouthRim.length > 8 && y1 > y0
+      this.U.uMouthY.value = ok ? (y0 + y1) / 2 - 0.094 : MOUTH_Y0   // the lips meet 0.094 below the middle of the opening behind them (measured on the default face)
+      this.U.uMouthS.value = ok ? (mx1 - mx0) / 2 * 1.04 : 0.5 * L.mouthW
       for (const m of this.eyeMeshes) {   // vertices in head object space so the face paint (eyes) continues across the filler
         m.geometry.dispose(); m.geometry = new THREE.SphereGeometry(0.34, 24, 20).translate(X0 + m.userData.side * cx, EYE_CY - 0.04, 1.5)
       }

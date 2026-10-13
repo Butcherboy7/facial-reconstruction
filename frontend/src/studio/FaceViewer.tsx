@@ -21,17 +21,21 @@ function Rig({ profile, seed, jitter }: { profile: Profile; seed: number; jitter
   return rig ? <primitive object={rig.root} /> : null
 }
 
+// dev close-ups: ?zr=8 camera radius, ?ty=0.5 aim height (e.g. the mouth)
+const DEV = new URLSearchParams(location.search)
+const DEV_TARGET = DEV.get('ty') ? new THREE.Vector3(TARGET.x, Number(DEV.get('ty')), TARGET.z) : TARGET
+
 function Controls({ view, auto }: { view: string; auto: boolean }) {
   const ref = useRef<any>(null)
   const { camera } = useThree()
   useEffect(() => {
-    const qv = new URLSearchParams(location.search).get('v')
+    const qv = DEV.get('v')
     const [az] = VIEWS[qv && VIEWS[qv] ? qv : view] || [0, 0], a = (az * Math.PI) / 180
-    const r = Number(new URLSearchParams(location.search).get('zr')) || 15.5   // dev: ?zr=8 for a close-up
-    camera.position.set(TARGET.x + Math.sin(a) * r, 1.55, TARGET.z + Math.cos(a) * r - 0)
-    camera.lookAt(TARGET); ref.current?.update()
+    const r = Number(DEV.get('zr')) || 15.5
+    camera.position.set(DEV_TARGET.x + Math.sin(a) * r, DEV_TARGET.y + 1.55 - TARGET.y, DEV_TARGET.z + Math.cos(a) * r)
+    camera.lookAt(DEV_TARGET); ref.current?.update()
   }, [view, camera])
-  return <OrbitControls ref={ref} target={TARGET} enablePan={false} minDistance={7} maxDistance={26} autoRotate={auto} autoRotateSpeed={2.2} />
+  return <OrbitControls ref={ref} target={DEV_TARGET} enablePan={false} minDistance={DEV.get('zr') ? 2 : 7} maxDistance={26} autoRotate={auto} autoRotateSpeed={2.2} />
 }
 
 export default function FaceViewer({ profile, seed = 1, jitter = 0, view = 'Front', auto = false, className = '' }:
