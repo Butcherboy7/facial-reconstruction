@@ -11,12 +11,12 @@ function pencil(img: HTMLImageElement, w: number, h: number) {
   const a = document.createElement('canvas'); a.width = w; a.height = h
   const ca = a.getContext('2d')!; ca.filter = 'grayscale(1) contrast(1.15)'; cover(ca, img, 0, 0, w, h)
   const b = document.createElement('canvas'); b.width = w; b.height = h
-  const cb = b.getContext('2d')!; cb.filter = 'grayscale(1) invert(1) blur(6px)'; cover(cb, img, 0, 0, w, h)
+  const cb = b.getContext('2d')!; cb.filter = 'grayscale(1) invert(1) blur(9px)'; cover(cb, img, 0, 0, w, h)
   const A = ca.getImageData(0, 0, w, h), B = cb.getImageData(0, 0, w, h)
   for (let i = 0; i < A.data.length; i += 4) {
     const g = A.data[i], inv = B.data[i]
     let v = inv >= 255 ? 255 : Math.min(255, (g * 255) / (255 - inv))
-    v = 255 - (255 - v) * 1.6 + (Math.random() - 0.5) * 14   // darker strokes + grain
+    v = 255 - Math.min(170, (255 - v) * 1.2) + (Math.random() - 0.5) * 14   // stronger strokes, no solid black + grain
     A.data[i] = A.data[i + 1] = A.data[i + 2] = Math.max(0, Math.min(255, v))
   }
   ca.filter = 'none'; ca.putImageData(A, 0, 0)
@@ -78,7 +78,7 @@ export default function Poster({ ctx }: { ctx: Ctx }) {
       c.drawImage(pencil(face, iw, ih), gx, iy)
       cover(c, face, gx + iw + 60, iy, iw, ih)
       c.lineWidth = 4; c.strokeRect(gx, iy, iw, ih); c.strokeRect(gx + iw + 60, iy, iw, ih)
-      c.font = 'italic 24px Georgia, serif'; c.fillText('Forensic pencil sketch', gx + iw / 2, iy + ih + 36); c.fillText('3D facial reconstruction', gx + iw * 1.5 + 60, iy + ih + 36)
+      c.font = 'italic 24px Georgia, serif'; c.fillText('Forensic pencil sketch', gx + iw / 2, iy + ih + 36); c.fillText('AI facial reconstruction', gx + iw * 1.5 + 60, iy + ih + 36)
       // details
       let y = iy + ih + 100
       c.textAlign = 'left'

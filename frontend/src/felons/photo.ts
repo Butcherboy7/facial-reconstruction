@@ -15,10 +15,16 @@ const sm = (a: number, b: number, x: number) => { const t = Math.max(0, Math.min
 const BG = [215, 220, 224]   // studio background colour of the 3D renders (#d7dce0)
 const SHIRTS = ['#2d3138', '#4a4f57', '#5b4a3c', '#1f2a3a', '#6b6f73', '#3b4a3e', '#7a6a58', '#26282b']
 
-export async function mugshot(src: string, f: Felon, idx: number) {
+export async function mugshot(src: string, f: Felon, idx: number, photo?: string) {
   const W = 400, H = 500
   const cv = document.createElement('canvas'); cv.width = W; cv.height = H
   const c = cv.getContext('2d')!
+  if (photo) {   // a real booking photograph is on file: use it and add the placard
+    const im = await loadImg(photo)
+    c.drawImage(im, 0, 0, W, H)
+    placard(c, f, idx, W, H)
+    return grade(c, W, H, 0.95, 8)
+  }
   // wall + height chart
   const g = c.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#c9ccc8'); g.addColorStop(1, '#b3b7b3'); c.fillStyle = g; c.fillRect(0, 0, W, H)
   c.strokeStyle = 'rgba(30,30,30,.55)'; c.fillStyle = 'rgba(30,30,30,.7)'; c.font = 'bold 13px Arial'
@@ -46,26 +52,33 @@ export async function mugshot(src: string, f: Felon, idx: number) {
   c.beginPath(); c.moveTo(0, sy + 22); c.bezierCurveTo(W * 0.2, sy - 4, W * 0.32, sy - 14, W * 0.4, sy - 14)
   c.quadraticCurveTo(W * 0.5, sy + 26, W * 0.6, sy - 14); c.bezierCurveTo(W * 0.68, sy - 14, W * 0.8, sy - 4, W, sy + 22); c.lineTo(W, H); c.lineTo(0, H); c.closePath(); c.fill()
   c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 3; c.beginPath(); c.moveTo(W * 0.4, sy - 14); c.quadraticCurveTo(W * 0.5, sy + 26, W * 0.6, sy - 14); c.stroke()
-  // ID placard
+  placard(c, f, idx, W, H)
+  return grade(c, W, H, 0.78, 16)
+}
+
+function placard(c: CanvasRenderingContext2D, f: Felon, idx: number, W: number, H: number) {
   const px = 92, py = H - 92, pw = W - 184, ph = 86
   c.fillStyle = '#121314'; c.fillRect(px, py, pw, ph); c.strokeStyle = '#d8d8d8'; c.lineWidth = 2; c.strokeRect(px + 4, py + 4, pw - 8, ph - 8)
   c.fillStyle = '#f2f2f2'; c.textAlign = 'center'; c.font = 'bold 13px "Courier New", monospace'; c.fillText('CRIMINAL RECORDS BUREAU', W / 2, py + 22)
   c.font = 'bold 21px "Courier New", monospace'; c.fillText(f.id, W / 2, py + 47)
   c.font = 'bold 12px "Courier New", monospace'; c.fillText(`${f.name.toUpperCase().slice(0, 24)}`, W / 2, py + 64); c.fillText(`${String(f.convicted)}-${String(3 + (idx % 9)).padStart(2, '0')}-${String(10 + idx).padStart(2, '0')}`, W / 2, py + 79)
   c.textAlign = 'left'
-  // camera look: slight desaturation, flash contrast, warm cast, vignette, grain
+}
+
+/** camera look: slight desaturation, flash contrast, warm cast, vignette, grain */
+function grade(c: CanvasRenderingContext2D, W: number, H: number, sat: number, grain: number) {
   const o = c.getImageData(0, 0, W, H), q = o.data
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = (y * W + x) * 4, l = 0.3 * q[i] + 0.59 * q[i + 1] + 0.11 * q[i + 2]
-    const vig = 1 - 0.32 * Math.pow(Math.hypot((x - W / 2) / W, (y - H * 0.42) / H) * 1.6, 2), n = (Math.random() - 0.5) * 16
+    const vig = 1 - 0.32 * Math.pow(Math.hypot((x - W / 2) / W, (y - H * 0.42) / H) * 1.6, 2), n = (Math.random() - 0.5) * grain
     for (let k = 0; k < 3; k++) {
-      let v = l + (q[i + k] - l) * 0.78                      // desaturate
+      let v = l + (q[i + k] - l) * sat                      // desaturate
       v = (v - 128) * 1.1 + 128 + [6, 2, -6][k]               // contrast + warm
       q[i + k] = Math.max(0, Math.min(255, v * vig + n))
     }
   }
   c.putImageData(o, 0, 0)
-  return cv.toDataURL('image/jpeg', 0.86)
+  return c.canvas.toDataURL('image/jpeg', 0.86)
 }
 
 // ---- inked fingerprint: ridges are level lines of a pattern field (whorl / loop / arch), warped and broken by noise ----

@@ -5,10 +5,12 @@ import type { Felon } from './data'
 import { fingerprint, fingerprintType, mugshot } from './photo'
 
 // ---- faces: every record rendered once by the 3D face model, then cached for the session ----
+// booking photographs generated once and shipped in public/felons/ (works offline); the 3D render is the fallback
+const photoOnFile = (id: string) => new Promise<string | undefined>(res => { const i = new Image(); i.onload = () => res(i.src); i.onerror = () => res(undefined); i.src = `/felons/${id}.jpg` })
 let facesP: Promise<Record<string, string>> | null = null
 export function loadFelonFaces() {
   facesP ??= renderJobs(FELONS.map(f => ({ profile: f.profile, seed: 0, jitter: 0 })))
-    .then(imgs => Promise.all(FELONS.map((f, i) => mugshot(imgs[i], f, i))))
+    .then(imgs => Promise.all(FELONS.map(async (f, i) => mugshot(imgs[i], f, i, await photoOnFile(f.id)))))
     .then(imgs => Object.fromEntries(FELONS.map((f, i) => [f.id, imgs[i]])))
   return facesP
 }

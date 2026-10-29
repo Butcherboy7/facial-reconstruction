@@ -128,14 +128,14 @@ class RenderIn(BaseModel):
     case_id: str; profile: dict; images: list[str]; seeds: list[int]; parent: int | None = None; changes: dict | None = None
 
 
-def finish(im, desc):
+def finish(im, desc, text_ok=False):
     """optional photo-real pass; falls back to the 3D render if disabled, failed, or the result has no valid face"""
     meta = {"photoreal": False}
-    if photoreal.enabled():
-        out, err = photoreal.enhance(im, desc)
+    if photoreal.enabled() or (text_ok and photoreal.text_enabled()):
+        out, err = photoreal.enhance(im, desc) if photoreal.enabled() else photoreal.text_photo(desc)
         v = engine.validate(out) if out is not None else None
         if out is not None and v and v.get("face_detected"):
-            meta.update({"photoreal": True, "source": "3D render + AI image model"}); im = out
+            meta.update({"photoreal": True, "source": "3D render + AI image model" if photoreal.enabled() else "AI photo from the witness description"}); im = out
         else:
             meta["photoreal_error"] = err or "no face in result"
     meta["validation"] = engine.validate(im)
@@ -150,7 +150,7 @@ def upload_version(b: RenderIn):
     n = (db.q("SELECT MAX(n) m FROM versions WHERE case_id=?", (b.case_id,), one=True)["m"] or 0) + 1
     cands = []
     ims = [decode_img(d) for d in b.images]
-    outs = list(ThreadPoolExecutor(4).map(lambda im: finish(im, short_prompt(b.profile)), ims))
+    outs = list(ThreadPoolExecutor(4).map(lambda im: finish(im, short_prompt(b.profile), text_ok=True), ims))
     for i, (sd, (im, meta)) in enumerate(zip(b.seeds, outs)):
         meta.update({"seed": sd, "jitter": 0 if i == 0 else 1})
         cands.append({"index": i, "path": save(b.case_id, im, f"v{n}_c{i}"), "meta": meta})

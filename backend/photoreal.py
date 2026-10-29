@@ -82,3 +82,36 @@ def enhance(img_bgr, desc: str):
         return None, f"HTTP {e.code}: {e.read()[:200].decode('utf8', 'ignore')}"
     except Exception as e:  # network, timeout
         return None, str(e)[:200]
+
+
+# ---- no-key fallback: Pollinations.ai text-to-image (free, no account). Follows the described attributes, not the
+# render's exact geometry, so it is used only for the main reconstruction. One request at a time (service limit).
+import threading, hashlib, urllib.parse
+_lock = threading.Lock()
+
+
+def text_enabled() -> bool:
+    return os.environ.get("POLLINATIONS", "1") != "0"
+
+
+def text_photo(desc: str):
+    """returns (image, error)"""
+    seed = int(hashlib.md5(desc.encode()).hexdigest()[:6], 16)   # same description -> same person
+    prompt = desc + ", realistic unretouched photograph, natural skin pores, soft flash, no text, no watermark"
+    url = "https://image.pollinations.ai/prompt/" + urllib.parse.quote(prompt) + f"?width=512&height=704&seed={seed}&nologo=true&model=flux"
+    with _lock:
+        for t in range(5):
+            try:
+                req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+                with urllib.request.urlopen(req, timeout=90) as r:
+                    out = cv2.imdecode(np.frombuffer(r.read(), np.uint8), cv2.IMREAD_COLOR)
+                if out is None: return None, "bad image"
+                h = out.shape[0]
+                out = out[: int(h * 640 / 704)]   # drop the bottom strip that carries the service's watermark
+                return cv2.resize(out, (512, 640)), None
+            except urllib.error.HTTPError as e:
+                if e.code in (402, 429, 503): import time; time.sleep(8 + t * 8); continue
+                return None, f"HTTP {e.code}"
+            except Exception as e:
+                return None, str(e)[:200]
+    return None, "service busy"
