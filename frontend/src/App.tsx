@@ -4,6 +4,7 @@ import { api } from './api'
 import Home from './pages/Home'
 import Cases from './pages/Cases'
 import CasePage from './pages/Case'
+import Felons from './pages/Felons'
 
 export const DISCLAIMER =
   'This application is an academic prototype for AI-assisted facial reconstruction and reference-image similarity analysis. Generated facial representations are approximations based on witness-provided characteristics. Similarity scores do not establish identity, guilt, or criminal involvement.'
@@ -26,7 +27,7 @@ function Header() {
         </div>
       </Link>
       <nav className="flex items-center gap-1 ml-2 sm:ml-6">
-        {[['/', 'Home'], ['/cases', 'Cases']].map(([to, l]) => (
+        {[['/', 'Home'], ['/cases', 'Cases'], ['/felons', 'Convicted Felons']].map(([to, l]) => (
           <NavLink key={to} to={to} end={to === '/'} className={({ isActive }) => `px-3 h-9 rounded-md text-[13.5px] font-medium grid place-items-center transition-colors ${isActive ? 'bg-steel-l text-steel-d' : 'text-graphite hover:bg-[#f1f1ee]'}`}>{l}</NavLink>
         ))}
         <Link to="/cases?new=1" className="btn btn-primary !h-9 !px-3.5 !text-[13px] ml-1">+ New case</Link>
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="/" element={<Home />} />
             <Route path="/cases" element={<Cases />} />
             <Route path="/case/:id" element={<CasePage />} />
+            <Route path="/felons" element={<Felons />} />
           </Routes>
         </main>
         <footer className="noprint border-t border-line bg-surface px-6 py-3 text-[11px] leading-relaxed text-mute">{DISCLAIMER}</footer>

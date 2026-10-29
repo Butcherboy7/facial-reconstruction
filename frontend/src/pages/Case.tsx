@@ -7,6 +7,9 @@ import Interview from '../components/Interview'
 import Analyze from '../components/Analyze'
 import Search from '../components/Search'
 import Report from '../components/Report'
+import MatchDb from '../components/MatchDb'
+import CaseFile from '../components/CaseFile'
+import Poster from '../components/Poster'
 import { Check } from '../icons'
 import { adaptSchema, normalize } from '../studio/logic'
 
@@ -16,6 +19,9 @@ const TABS = [
   { id: 'interview', label: 'Describe', hint: 'Answer questions about the person', help: 'Answer the questions one group at a time. The 3D face changes as you go. When everything required is filled in, save the face.' },
   { id: 'analyze', label: 'Explore', hint: 'Sketch, 3D view, age, variations', help: 'Work from the face you picked: turn it in 3D, make a pencil sketch, see other ages, or try glasses, different hair or facial hair.' },
   { id: 'search', label: 'Compare', hint: 'Match against reference faces', help: 'Run the picked face against the stored reference set. Scores are model output only; they never establish identity.' },
+  { id: 'match', label: 'Match Database', hint: 'Scan the felons register', help: 'Scan the reconstructed face against the Convicted Felons register and see the closest records with their match accuracy.' },
+  { id: 'file', label: 'Suspect & Witnesses', hint: 'Details, leads, statements', help: 'Record what is known about the suspect (name stays Unknown until identified), the leads, and every witness statement.' },
+  { id: 'export', label: 'Export', hint: 'Wanted poster', help: 'Create a WANTED poster with the pencil sketch, the 3D face and the suspect details. Download it as an image or save it as a PDF.' },
   { id: 'report', label: 'Report', hint: 'Printable case summary', help: 'A summary of the whole case. Use Print to save it as a PDF.' },
 ]
 
@@ -45,6 +51,7 @@ export default function CasePage() {
     interview: vschema.required.every(k => profile[k]),
     analyze: data.assets.length > 0,
     search: !!data.search,
+    match: false, file: false, export: false,
     report: false,
   }
 
@@ -73,6 +80,9 @@ export default function CasePage() {
         {tab === 'interview' && <Interview ctx={ctx} />}
         {tab === 'analyze' && <Analyze ctx={ctx} />}
         {tab === 'search' && <Search ctx={ctx} />}
+        {tab === 'match' && <MatchDb ctx={ctx} />}
+        {tab === 'file' && <CaseFile ctx={ctx} />}
+        {tab === 'export' && <Poster ctx={ctx} />}
         {tab === 'report' && <Report ctx={ctx} />}
       </div>
     </div>

@@ -52,3 +52,11 @@ textarea.input { height:auto; padding:10px 12px; }
 .stagger > *:nth-child(2) { animation-delay: .06s } .stagger > *:nth-child(3) { animation-delay: .12s } .stagger > *:nth-child(4) { animation-delay: .18s }
 .stagger > *:nth-child(5) { animation-delay: .22s } .stagger > *:nth-child(n+6) { animation-delay: .26s }
 @media (prefers-reduced-motion: reduce) { *, ::before, ::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; } .scanline { display:none; } }
+
+/* ---- match-database scan animation ---- */
+.scanline { position: absolute; left: 0; right: 0; height: 18%; top: -18%; pointer-events: none;
+  background: linear-gradient(to bottom, transparent, rgba(79,240,200,.35) 70%, rgba(79,240,200,.95) 98%, transparent);
+  animation: scanmove 1.6s linear infinite; }
+@keyframes scanmove { to { top: 100%; } }
+.dotpop { animation: dotpop .4s ease-out both; }
+@keyframes dotpop { from { opacity: 0; r: 3; } to { opacity: 1; } }
