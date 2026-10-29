@@ -19,7 +19,7 @@ export default function Felons() {
   const faces = useFelonFaces()
   const nav = useNavigate()
   const [q, setQ] = useState('')
-  const [sel, setSel] = useState<Felon | null>(null)
+  const [sel, setSel] = useState<Felon | null>(() => FELONS.find(f => f.id === new URLSearchParams(location.search).get('record')) ?? null)   // ?record=ID opens a record directly
   const [busy, setBusy] = useState(false)
   const list = FELONS.filter(f => (f.name + f.alias + f.crime + f.id).toLowerCase().includes(q.toLowerCase()))
 

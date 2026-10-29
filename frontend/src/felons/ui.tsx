@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react'
 import { renderJobs } from '../studio/render'
 import { FELONS } from './data'
 import type { Felon } from './data'
+import { fingerprint, fingerprintType, mugshot } from './photo'
 
 // ---- faces: every record rendered once by the 3D face model, then cached for the session ----
 let facesP: Promise<Record<string, string>> | null = null
 export function loadFelonFaces() {
   facesP ??= renderJobs(FELONS.map(f => ({ profile: f.profile, seed: 0, jitter: 0 })))
+    .then(imgs => Promise.all(FELONS.map((f, i) => mugshot(imgs[i], f, i))))
     .then(imgs => Object.fromEntries(FELONS.map((f, i) => [f.id, imgs[i]])))
   return facesP
 }
@@ -16,40 +18,12 @@ export function useFelonFaces() {
   return faces
 }
 
-// ---- procedural fingerprint (loop / whorl / arch), seeded so each record keeps its own print ----
-function rng(seed: number) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296 } }
-
+// ---- inked fingerprint card (rendered in photo.ts) ----
 export function Fingerprint({ seed, size = 120, label }: { seed: number; size?: number; label?: string }) {
-  const r = rng(seed * 31 + 7)
-  const type = ['loop', 'whorl', 'arch', 'loop'][Math.floor(r() * 4)]
-  const cx = 50 + (r() - 0.5) * 10, cy = 58 + (r() - 0.5) * 8, ph = r() * 6.28, a1 = 0.08 + r() * 0.08, tilt = (r() - 0.5) * 0.5
-  const paths: string[] = []
-  for (let k = 1; k <= 26; k++) {
-    const rad = k * 2.25, pts: string[] = []
-    const t0 = type === 'whorl' ? 0 : type === 'loop' ? -0.35 : 0.15, t1 = type === 'whorl' ? 6.3 : type === 'loop' ? 3.5 : 2.99
-    for (let t = t0; t <= t1; t += 0.06) {
-      let x: number, y: number
-      const wob = 1 + a1 * Math.sin(3 * t + ph) * Math.min(1, k / 8) + 0.03 * Math.sin(7 * t + k)
-      if (type === 'arch') { x = cx + (t - 1.57) * 30; y = cy - rad * 0.9 * Math.sin(Math.max(0, Math.min(3.14, t))) * 0.55 + k * 1.6 - 18 }
-      else { x = cx + Math.cos(t + tilt) * rad * wob * (type === 'loop' ? 0.85 : 1); y = cy - Math.sin(t + tilt) * rad * wob * 1.15 }
-      if (type === 'loop' && t > 3.14) { x -= (t - 3.14) * 0; y += (t - 3.14) * rad * 2.2 }
-      if (type === 'loop' && t < 0) { y += -t * rad * 2.2 }
-      pts.push(`${x.toFixed(1)},${y.toFixed(1)}`)
-    }
-    paths.push(pts.join(' '))
-  }
-  const id = `fp${seed}`
   return (
     <figure className="inline-flex flex-col items-center">
-      <svg width={size} height={size * 1.25} viewBox="0 0 100 125" className="bg-white rounded">
-        <defs><clipPath id={id}><ellipse cx="50" cy="62" rx="40" ry="54" /></clipPath>
-          <filter id={id + 'f'}><feTurbulence baseFrequency="0.9" numOctaves="1" seed={seed % 97} /><feDisplacementMap in="SourceGraphic" scale="1.6" /></filter></defs>
-        <g clipPath={`url(#${id})`} filter={`url(#${id}f)`} fill="none" stroke="#2b2b2b" strokeWidth="1.15" strokeLinecap="round">
-          {paths.map((d, i) => <polyline key={i} points={d} strokeDasharray={`${18 + ((i * 37 + seed) % 40)} ${1.5 + ((i * 13 + seed) % 3)}`} opacity={0.75 + ((i * 7) % 3) * 0.08} />)}
-        </g>
-        <ellipse cx="50" cy="62" rx="40" ry="54" fill="none" stroke="#e5e5e2" />
-      </svg>
-      {label && <figcaption className="text-[10px] text-mute mt-1 uppercase tracking-wider">{label} · {type}</figcaption>}
+      <img src={fingerprint(seed)} width={size} height={size * 1.28} className="bg-white rounded-sm border border-line" style={{ width: size, height: size * 1.28 }} />
+      {label && <figcaption className="text-[9.5px] text-mute mt-1 uppercase tracking-wider text-center leading-tight">{label}<br />{fingerprintType(seed)}</figcaption>}
     </figure>
   )
 }
